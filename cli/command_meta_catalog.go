@@ -306,7 +306,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel sync emails": {
 		Summary: "Generate TypeScript email props and export Go email templates",
 		Details: []string{
-			"Writes emails/_generated/props.ts and emails/_generated/manifest.ts from exported emails/*.go structs with a ToHTML method.",
+			"Writes emails/generated/props.ts and emails/generated/manifest.ts from exported emails/*.go structs with a ToHTML method.",
 			"Then runs the project's email:export script, which writes the committed emails/templates/*.tmpl files.",
 			"Use --skip-export when frontend dependencies are not installed and only the generated TypeScript should be refreshed.",
 		},

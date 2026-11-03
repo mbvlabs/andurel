@@ -76,7 +76,7 @@ func TestEmailExportMatchesCommittedTemplates(t *testing.T) {
 
 	// A literal "{{" anywhere in the rendered output would break Go
 	// text/template, so the export must reject it before writing templates.
-	layoutPath := filepath.Join(project, "emails", "_components", "layout.tsx")
+	layoutPath := filepath.Join(project, "emails", "components", "layout.tsx")
 	layout, err := os.ReadFile(layoutPath)
 	if err != nil {
 		t.Fatalf("read layout.tsx: %v", err)

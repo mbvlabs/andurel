@@ -3,7 +3,7 @@ import * as path from "node:path"
 import { fileURLToPath } from "node:url"
 import type { ComponentType } from "react"
 import { render } from "react-email"
-import { emails } from "./_generated/manifest"
+import { emails } from "./generated/manifest"
 
 const outputDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "templates")
 

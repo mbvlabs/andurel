@@ -564,7 +564,8 @@ Email is authored as React Email components in `emails/` and exported to Go
 committed, so `go build`, tests and sending never need Node. Go owns the data:
 a struct in `emails/` declares `ToHTML`/`ToText`, and `emails/previews.go`
 supplies fixture values for `andurel email render`. Go ignores the TSX sources
-and the `_components/` and `_generated/` directories, which start with `_`.
+and the `components/` and `generated/` directories because they hold no Go
+files.
 
 **1. Create or edit the React Email component:**
 
@@ -577,8 +578,8 @@ through the real Go path and keeps `tmp/emails/index.html` live.
 ```tsx
 // emails/welcome-email.tsx
 import { Heading, Section, Text } from "react-email"
-import { Layout } from "./_components/layout"
-import type { WelcomeEmailProps } from "./_generated/props"
+import { Layout } from "./components/layout"
+import type { WelcomeEmailProps } from "./generated/props"
 import { theme } from "./theme"
 
 export default function WelcomeEmail({ UserName }: WelcomeEmailProps) {
@@ -616,8 +617,8 @@ func (w WelcomeEmail) ToText() (string, error) { return renderText("welcome_emai
 
 **2. Regenerate and inspect:**
 
-`andurel sync emails` regenerates `emails/_generated/props.ts` and
-`emails/_generated/manifest.ts`, then runs the project's `email:export` script
+`andurel sync emails` regenerates `emails/generated/props.ts` and
+`emails/generated/manifest.ts`, then runs the project's `email:export` script
 to write `emails/templates/welcome_email.{html,txt}.tmpl`. Commit both. `andurel build`
 and `andurel run` run the same sync automatically. Use
 `andurel email render --json` to inspect the actual HTML and text the

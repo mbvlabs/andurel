@@ -43,7 +43,7 @@ type EmailsWatcherConfig struct {
 
 // IsEmailsSource reports whether path is an input of andurel sync emails:
 // top-level emails/*.go structs and authored .ts/.tsx files under emails/.
-// Generated emails/_generated files, committed emails/templates and Go tests
+// Generated emails/generated files, committed emails/templates and Go tests
 // are ignored, as is anything under node_modules.
 func IsEmailsSource(rootDir, path string) bool {
 	rel, ok := relativeProjectPath(rootDir, path)
@@ -52,7 +52,7 @@ func IsEmailsSource(rootDir, path string) bool {
 	}
 
 	if strings.HasPrefix(rel, "emails/templates/") ||
-		strings.HasPrefix(rel, "emails/_generated/") ||
+		strings.HasPrefix(rel, "emails/generated/") ||
 		strings.Contains(rel, "/node_modules/") {
 		return false
 	}
@@ -118,7 +118,7 @@ func RunEmailsWatcher(ctx context.Context, cfg EmailsWatcherConfig) error {
 }
 
 // addEmailsWatchDirectories watches root and every directory below it. It
-// skips node_modules and the generated emails/_generated directory. It
+// skips node_modules and the generated emails/generated directory. It
 // reports whether at least one directory was watched.
 func addEmailsWatchDirectories(fsWatcher *fsnotify.Watcher, root string) (bool, error) {
 	watched := false
@@ -133,7 +133,7 @@ func addEmailsWatchDirectories(fsWatcher *fsnotify.Watcher, root string) (bool, 
 		if name == "node_modules" || name == ".git" {
 			return filepath.SkipDir
 		}
-		if filepath.Base(path) == "_generated" &&
+		if filepath.Base(path) == "generated" &&
 			filepath.Base(filepath.Dir(path)) == "emails" {
 			return filepath.SkipDir
 		}

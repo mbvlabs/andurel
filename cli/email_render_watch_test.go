@@ -20,7 +20,7 @@ func TestClassifyEmailWatchEvent(t *testing.T) {
 		},
 		{
 			name: "nested component",
-			path: filepath.Join(root, "emails", "_components", "layout.tsx"),
+			path: filepath.Join(root, "emails", "components", "layout.tsx"),
 			want: emailWatchEventSync,
 		},
 		{
@@ -30,12 +30,12 @@ func TestClassifyEmailWatchEvent(t *testing.T) {
 		},
 		{
 			name: "generated props",
-			path: filepath.Join(root, "emails", "_generated", "props.ts"),
+			path: filepath.Join(root, "emails", "generated", "props.ts"),
 			want: emailWatchEventNone,
 		},
 		{
 			name: "generated manifest",
-			path: filepath.Join(root, "emails", "_generated", "manifest.ts"),
+			path: filepath.Join(root, "emails", "generated", "manifest.ts"),
 			want: emailWatchEventNone,
 		},
 		{

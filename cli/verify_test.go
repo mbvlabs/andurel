@@ -1017,7 +1017,7 @@ func TestGeneratedViolationsNameSourceFiles(t *testing.T) {
 		message: "generated email output is out of date",
 		changed: []string{
 			"emails/templates/verify_email.html.tmpl",
-			"emails/_generated/props.ts",
+			"emails/generated/props.ts",
 		},
 	})
 	if len(email) != 2 ||

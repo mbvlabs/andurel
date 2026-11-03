@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	generatedEmailsDir          = "emails/_generated"
+	generatedEmailsDir          = "emails/generated"
 	generatedEmailsPropsTSPath  = generatedEmailsDir + "/props.ts"
 	generatedEmailsManifestPath = generatedEmailsDir + "/manifest.ts"
 )
@@ -73,8 +73,8 @@ fixture data and generated Go template placeholders. Slices, maps, bools, struct
 pointers and interfaces are a generation error: format them into a string
 field in Go, because emails support scalar fields only.
 
-It writes emails/_generated/props.ts with <Name>Props, <Name>HtmlVars and
-<Name>TextVars, and emails/_generated/manifest.ts consumed by emails/_export.tsx.
+It writes emails/generated/props.ts with <Name>Props, <Name>HtmlVars and
+<Name>TextVars, and emails/generated/manifest.ts consumed by emails/export.tsx.
 It then runs the project's email:export script, which writes the committed
 emails/templates/*.tmpl files. Run it after changing emails/*.go or emails/**.`,
 		Example: `  andurel sync emails
@@ -116,11 +116,11 @@ emails/templates/*.tmpl files. Run it after changing emails/*.go or emails/**.`,
 		},
 	}
 	cmd.Flags().
-		BoolVar(&skipExport, "skip-export", false, "Only write emails/_generated; do not run the email:export script")
+		BoolVar(&skipExport, "skip-export", false, "Only write emails/generated; do not run the email:export script")
 	setAgentMetadata(
 		cmd,
 		"generation",
-		"Writes emails/_generated/props.ts and emails/_generated/manifest.ts from exported emails/*.go structs with a ToHTML method, then runs the project's email:export script to regenerate emails/templates/*.tmpl. Use --skip-export when frontend dependencies are not installed. Use --json for generated files, template count and whether the export ran.",
+		"Writes emails/generated/props.ts and emails/generated/manifest.ts from exported emails/*.go structs with a ToHTML method, then runs the project's email:export script to regenerate emails/templates/*.tmpl. Use --skip-export when frontend dependencies are not installed. Use --json for generated files, template count and whether the export ran.",
 	)
 	return cmd
 }
@@ -140,7 +140,7 @@ func emailsReportSummary(report emailsReport) string {
 // hasReactEmails reports whether the project carries the React Email
 // authoring scaffold. Go-only scaffolds keep the Go email path.
 func hasReactEmails(rootDir string) bool {
-	info, err := os.Stat(filepath.Join(rootDir, "emails", "_export.tsx"))
+	info, err := os.Stat(filepath.Join(rootDir, "emails", "export.tsx"))
 	return err == nil && !info.IsDir()
 }
 
@@ -156,7 +156,7 @@ func runEmailsExport(ctx context.Context, rootDir string, stdout, stderr io.Writ
 			"frontend dependencies are not installed",
 			output.ExitDependency,
 			"Run '"+packageManager+" install', then run andurel sync emails again. "+
-				"Use --skip-export to write emails/_generated only.",
+				"Use --skip-export to write emails/generated only.",
 		)
 	}
 

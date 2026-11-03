@@ -292,7 +292,7 @@ func doctorHint(result checkResult) string {
 	case "templ generate":
 		return "Commit the generated *_templ.go output (andurel build regenerates it) and fix any template errors."
 	case "emails export":
-		return "Run andurel sync emails and commit the updated emails/_generated and emails/templates files."
+		return "Run andurel sync emails and commit the updated emails/generated and emails/templates files."
 	case "narsilc generate":
 		return "Run andurel sync queries and commit the updated domains/internal/queries output."
 	case "routes.ts":
@@ -1396,7 +1396,7 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 	}
 }
 
-// checkEmailsExport compares emails/_generated props/manifest and the committed
+// checkEmailsExport compares emails/generated props/manifest and the committed
 // emails/templates to a fresh generation and export. The export needs installed
 // frontend dependencies, so a project without node_modules reports a skip with
 // the install command instead of a failure.
@@ -1476,7 +1476,7 @@ func checkEmailsExport(rootDir string, verbose bool) checkResult {
 	}
 	if len(changed) > 0 {
 		details := []string{
-			"Run 'andurel sync emails' and commit the updated emails/_generated and emails/templates files.",
+			"Run 'andurel sync emails' and commit the updated emails/generated and emails/templates files.",
 		}
 		if verbose {
 			details = append(details, changed...)

@@ -1,7 +1,7 @@
 import { Heading, Section, Text } from "react-email"
-import { CodeBox } from "./_components/code-box"
-import { Layout } from "./_components/layout"
-import type { VerifyEmailProps } from "./_generated/props"
+import { CodeBox } from "./components/code-box"
+import { Layout } from "./components/layout"
+import type { VerifyEmailProps } from "./generated/props"
 import { theme } from "./theme"
 
 const eyebrowStyle = {

@@ -7,9 +7,9 @@ by `andurel sync emails` to committed Go `text/template` files under
 committed, `go build`, tests and sending never need Node.
 
 `emails/` is one directory for both languages: Go ignores `.tsx`/`.ts` files and
-the `_`-prefixed `_components/` and `_generated/` directories, so the Go package
-and the React Email sources coexist. The Go package is named `emails`; import it
-as `<module>/emails`.
+the `components/` and `generated/` directories because they hold no Go files, so
+the Go package and the React Email sources coexist. The Go package is named
+`emails`; import it as `<module>/emails`.
 
 An agent edits three things per email: the TSX component in `emails/`, the Go
 struct in `emails/`, and one fixture in `emails/previews.go`.
@@ -19,12 +19,12 @@ struct in `emails/`, and one fixture in `emails/previews.go`.
 | Path | Role |
 | --- | --- |
 | `emails/theme.ts` | light and dark hex palettes; hand-edited |
-| `emails/_components/layout.tsx` | shared `Layout`: `<Html>`/`<Head>`, color-scheme metas, dark-mode style block, card and footer |
-| `emails/_components/code-box.tsx` | shared verification-code box |
+| `emails/components/layout.tsx` | shared `Layout`: `<Html>`/`<Head>`, color-scheme metas, dark-mode style block, card and footer |
+| `emails/components/code-box.tsx` | shared verification-code box |
 | `emails/<kebab>.tsx` | one component per email; agent-authored |
-| `emails/_export.tsx` | export script: renders each component to `.html`/`.txt` templates |
-| `emails/_generated/props.ts` | generated `XProps`, `XHtmlVars`, `XTextVars`; do not edit |
-| `emails/_generated/manifest.ts` | generated component manifest; do not edit |
+| `emails/export.tsx` | export script: renders each component to `.html`/`.txt` templates |
+| `emails/generated/props.ts` | generated `XProps`, `XHtmlVars`, `XTextVars`; do not edit |
+| `emails/generated/manifest.ts` | generated component manifest; do not edit |
 | `emails/tsconfig.json` | typecheck config for `emails/` |
 | `emails/<snake>.go` | Go struct plus `ToHTML`/`ToText`; agent-authored |
 | `emails/render.go` | embeds `emails/templates/*` and executes them with `text/template` |
@@ -62,8 +62,8 @@ func (w WelcomeEmail) ToText() (string, error) {
 ### emails/welcome-email.tsx
 ```tsx
 import { Heading, Section, Text } from "react-email"
-import { Layout } from "./_components/layout"
-import type { WelcomeEmailProps } from "./_generated/props"
+import { Layout } from "./components/layout"
+import type { WelcomeEmailProps } from "./generated/props"
 import { theme } from "./theme"
 
 const headingStyle = {
@@ -157,7 +157,7 @@ func (i Identity) sendWelcome(ctx context.Context, queue storage.InsertQueue, us
 
 ## Components
 
-Shared components (import from `./_components/...`):
+Shared components (import from `./components/...`):
 
 | Component | Props | Use |
 | --- | --- | --- |
@@ -180,7 +180,7 @@ Mail and Outlook.com.
 
 ## Rules
 
-- Author email markup only in `emails/`. `emails/templates/*` and `emails/_generated/*` are generated: never edit them by hand. Change the Go struct or the TSX, then run `andurel sync emails`.
+- Author email markup only in `emails/`. `emails/templates/*` and `emails/generated/*` are generated: never edit them by hand. Change the Go struct or the TSX, then run `andurel sync emails`.
 - An email is a Go struct in `emails/` with exported fields and `ToHTML`/`ToText` that call `renderHTML`/`renderText` with the snake_case template name; implement `pkgemail.Transformer` so `email.Compose` can render both bodies.
 - Scalar fields only: `string`, the integer kinds and `float64`. Slices, maps, bools, structs, pointers and interfaces fail `andurel sync emails` with "format it into a string field in Go". Pre-format lists and optional text into strings in the service.
 - Render every field in both the HTML and the text output. The export fails if a prop has no placeholder or if the output has a `{{` that is not a generated placeholder.
@@ -202,7 +202,7 @@ Mail and Outlook.com.
    text panes, and reloads itself when the render changes.
 2. `--watch` also runs the same steps as `andurel sync emails` whenever
    `emails/**` changes: it scans exported structs in `emails/*.go` that have
-   `ToHTML`, writes `emails/_generated/props.ts` and `manifest.ts`, then runs
+   `ToHTML`, writes `emails/generated/props.ts` and `manifest.ts`, then runs
    the project's `email:export` script to write `emails/templates/*`. Errors
    print in the terminal and the watcher keeps running.
 3. For a one-shot run, use `andurel email render --json`. It runs the real Go
@@ -213,7 +213,7 @@ Mail and Outlook.com.
    machine-readable report, and `andurel email render verify_email` to render
    one email.
 5. Run `andurel doctor`, then commit `emails/`, including the generated
-   `emails/_generated/*.ts` and `emails/templates/*.tmpl` files.
+   `emails/generated/*.ts` and `emails/templates/*.tmpl` files.
 
 The gallery is the truth loop: it renders the committed Go templates with the
 Go `ToHTML`/`ToText` path, including the Go substitutions, so always check it
@@ -233,7 +233,7 @@ mail locally and the app refuses to start in production with it. Set
 - [ ] React Email component added in `emails/<kebab>.tsx`, using `Layout`, `theme` tokens and the generated props type.
 - [ ] Only hex tokens and physical padding; no Tailwind, logical properties, `oklch()`, `var()`, or a literal `{{`.
 - [ ] `Preview` entry added in `emails/previews.go`.
-- [ ] `andurel sync emails` run; `emails/_generated` and `emails/templates` updated and committed.
+- [ ] `andurel sync emails` run; `emails/generated` and `emails/templates` updated and committed.
 - [ ] `andurel email render --json` succeeds and the `.html` and `.txt` files look right; `andurel email render --watch --open` shows the same result in the live gallery.
 - [ ] Send helper lives in a service and enqueues the email job.
 - [ ] `andurel doctor` reports `emails export` ok.

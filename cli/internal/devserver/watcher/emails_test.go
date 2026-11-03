@@ -29,17 +29,17 @@ func TestIsEmailsSource(t *testing.T) {
 		},
 		{
 			name: "nested email source",
-			path: filepath.Join(root, "emails", "_components", "layout.tsx"),
+			path: filepath.Join(root, "emails", "components", "layout.tsx"),
 			want: true,
 		},
 		{
 			name: "generated props",
-			path: filepath.Join(root, "emails", "_generated", "props.ts"),
+			path: filepath.Join(root, "emails", "generated", "props.ts"),
 			want: false,
 		},
 		{
 			name: "generated manifest",
-			path: filepath.Join(root, "emails", "_generated", "manifest.ts"),
+			path: filepath.Join(root, "emails", "generated", "manifest.ts"),
 			want: false,
 		},
 		{
@@ -72,7 +72,7 @@ func TestIsEmailsSource(t *testing.T) {
 func TestRunEmailsWatcherSyncsChangedSource(t *testing.T) {
 	root := t.TempDir()
 	emailDir := filepath.Join(root, "emails")
-	emailsDir := filepath.Join(root, "emails", "_components")
+	emailsDir := filepath.Join(root, "emails", "components")
 	for _, dir := range []string{emailDir, emailsDir} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)

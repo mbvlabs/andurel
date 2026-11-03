@@ -468,9 +468,9 @@ type VerifyEmail struct {
 func (VerifyEmail) ToHTML() (string, error) { return "", nil }
 `)
 	writeTestFile(t, root, "emails/verify-email.tsx", "export default function VerifyEmail() { return null }\n")
-	writeTestFile(t, root, "emails/_export.tsx", "export {}\n")
-	writeTestFile(t, root, "emails/_generated/props.ts", "stale\n")
-	writeTestFile(t, root, "emails/_generated/manifest.ts", "stale\n")
+	writeTestFile(t, root, "emails/export.tsx", "export {}\n")
+	writeTestFile(t, root, "emails/generated/props.ts", "stale\n")
+	writeTestFile(t, root, "emails/generated/manifest.ts", "stale\n")
 
 	result := checkEmailsExport(root, false)
 	if result.status != statusFail {
@@ -493,7 +493,7 @@ type VerifyEmail struct {
 func (VerifyEmail) ToHTML() (string, error) { return "", nil }
 `)
 	writeTestFile(t, root, "emails/verify-email.tsx", "export default function VerifyEmail() { return null }\n")
-	writeTestFile(t, root, "emails/_export.tsx", "export {}\n")
+	writeTestFile(t, root, "emails/export.tsx", "export {}\n")
 	if _, err := generateEmailsFiles(root); err != nil {
 		t.Fatalf("generateEmailsFiles: %v", err)
 	}

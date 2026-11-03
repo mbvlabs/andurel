@@ -1509,7 +1509,7 @@ func generatedSourceFile(checkName, path string) string {
 			name = strings.TrimSuffix(strings.TrimSuffix(name, ".html.tmpl"), ".txt.tmpl")
 			return "emails/" + naming.ToKebabCase(name) + ".tsx"
 		}
-		if strings.HasPrefix(path, "emails/_generated/") {
+		if strings.HasPrefix(path, "emails/generated/") {
 			return "emails/*.go"
 		}
 	}

@@ -37,7 +37,7 @@ const (
 	// emailWatchEventRender re-renders without regenerating props or
 	// templates, for a committed template edited outside the export.
 	emailWatchEventRender
-	// emailWatchEventSync regenerates emails/_generated and runs the
+	// emailWatchEventSync regenerates emails/generated and runs the
 	// project's email:export before re-rendering.
 	emailWatchEventSync
 )

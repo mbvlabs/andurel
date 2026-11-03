@@ -59,8 +59,8 @@ var inertiaGeneratedFiles = []struct {
 }{
 	{path: "resources/js/routes.ts", sync: "routes"},
 	{path: "resources/js/types/payloads.ts", sync: "payloads"},
-	{path: "emails/_generated/props.ts", sync: "emails"},
-	{path: "emails/_generated/manifest.ts", sync: "emails"},
+	{path: "emails/generated/props.ts", sync: "emails"},
+	{path: "emails/generated/manifest.ts", sync: "emails"},
 }
 
 // assertNoGeneratedDrift re-runs the sync generators on a fresh scaffold and

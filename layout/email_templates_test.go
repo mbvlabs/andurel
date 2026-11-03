@@ -138,13 +138,13 @@ func TestScaffoldWritesReactEmailSources(t *testing.T) {
 			root := renderScaffoldForEmailTest(t, adapter)
 			for _, path := range []string{
 				"emails/theme.ts",
-				"emails/_components/layout.tsx",
-				"emails/_components/code-box.tsx",
+				"emails/components/layout.tsx",
+				"emails/components/code-box.tsx",
 				"emails/verify-email.tsx",
 				"emails/reset-password.tsx",
-				"emails/_export.tsx",
-				"emails/_generated/props.ts",
-				"emails/_generated/manifest.ts",
+				"emails/export.tsx",
+				"emails/generated/props.ts",
+				"emails/generated/manifest.ts",
 				"emails/tsconfig.json",
 				"emails/render.go",
 				"emails/verify_email.go",
@@ -164,7 +164,7 @@ func TestScaffoldWritesReactEmailSources(t *testing.T) {
 				t.Fatalf("read package.json: %v", err)
 			}
 			for _, want := range []string{
-				`"email:export": "tsx --tsconfig emails/tsconfig.json emails/_export.tsx"`,
+				`"email:export": "tsx --tsconfig emails/tsconfig.json emails/export.tsx"`,
 				`"react-email": "6.11.6"`,
 			} {
 				if !strings.Contains(string(packageJSON), want) {

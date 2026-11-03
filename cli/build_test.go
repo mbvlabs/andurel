@@ -146,7 +146,7 @@ type VerifyEmail struct {
 func (VerifyEmail) ToHTML() (string, error) { return "", nil }
 `)
 	writeTestFile(t, root, "emails/verify-email.tsx", "export default function VerifyEmail() { return null }\n")
-	writeTestFile(t, root, "emails/_export.tsx", "export {}\n")
+	writeTestFile(t, root, "emails/export.tsx", "export {}\n")
 	writeTestFile(t, root, "node_modules/.keep", "")
 	lock := layout.NewAndurelLock("test")
 	lock.Tools["templ"] = validTestTool("templ", "v0.3.0")

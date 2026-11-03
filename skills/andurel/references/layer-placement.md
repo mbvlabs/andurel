@@ -326,12 +326,13 @@ Recurring work returns a `*river.PeriodicJob` from `queue.PeriodicJobs()`,
 which `app.NewQueue` passes to `storage.WithRiverPeriodicJobs`.
 
 Put email data structs, send helpers and the React Email components in
-`emails/`. Go ignores the `.tsx` sources and the `_components/` and
-`_generated/` directories. A struct declares exported scalar fields and
-`ToHTML`/`ToText`, which call `renderHTML`/`renderText` on the committed
-`emails/templates/<snake>.{html,txt}.tmpl`. Author the matching
-`emails/<kebab>.tsx` with the shared `Layout` and `theme.ts` tokens, then run
-`andurel sync emails` to regenerate `emails/_generated/` and the templates.
+`emails/`. Go ignores the `.tsx` sources and the `components/` and
+`generated/` directories because they hold no Go files. A struct declares
+exported scalar fields and `ToHTML`/`ToText`, which call `renderHTML`/
+`renderText` on the committed `emails/templates/<snake>.{html,txt}.tmpl`.
+Author the matching `emails/<kebab>.tsx` with the shared `Layout` and
+`theme.ts` tokens, then run `andurel sync emails` to regenerate
+`emails/generated/` and the templates.
 `andurel email render` renders fixtures from `emails/previews.go`. Put
 provider-specific adapters in a top-level package named for the provider (for
 example `clients/email/`).

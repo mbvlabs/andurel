@@ -344,13 +344,13 @@ var inertiaSvelteTemplateMappings = map[TmplTarget]TmplTargetPath{
 // TSX at build time, and the exported Go templates are adapter-independent.
 var inertiaEmailTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"emails_theme_ts.tmpl":                "emails/theme.ts",
-	"emails_components_layout_tsx.tmpl":   "emails/_components/layout.tsx",
-	"emails_components_code_box_tsx.tmpl": "emails/_components/code-box.tsx",
+	"emails_components_layout_tsx.tmpl":   "emails/components/layout.tsx",
+	"emails_components_code_box_tsx.tmpl": "emails/components/code-box.tsx",
 	"emails_verify_email_tsx.tmpl":        "emails/verify-email.tsx",
 	"emails_reset_password_tsx.tmpl":      "emails/reset-password.tsx",
-	"emails_export_tsx.tmpl":              "emails/_export.tsx",
-	"emails_generated_props_ts.tmpl":      "emails/_generated/props.ts",
-	"emails_generated_manifest_ts.tmpl":   "emails/_generated/manifest.ts",
+	"emails_export_tsx.tmpl":              "emails/export.tsx",
+	"emails_generated_props_ts.tmpl":      "emails/generated/props.ts",
+	"emails_generated_manifest_ts.tmpl":   "emails/generated/manifest.ts",
 	"emails_tsconfig_json.tmpl":           "emails/tsconfig.json",
 }
 
