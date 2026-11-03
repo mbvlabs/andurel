@@ -16,9 +16,17 @@ var excludeDirs = map[string]bool{
 	".git": true, "assets": true, "vendor": true,
 }
 
-// RunGoWatcher watches .go files under dir (skipping generated _templ.go files
-// and tool directories) and signals rebuildChan after a short debounce.
-func RunGoWatcher(ctx context.Context, dir string, rebuildChan chan<- struct{}, verbose bool, log io.Writer) error {
+// RunGoWatcher watches .go files under dir (skipping generated _templ.go files,
+// tool directories, and paths for which skipRebuild returns true) and signals
+// rebuildChan after a short debounce.
+func RunGoWatcher(
+	ctx context.Context,
+	dir string,
+	rebuildChan chan<- struct{},
+	skipRebuild func(path string) bool,
+	verbose bool,
+	log io.Writer,
+) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
@@ -64,6 +72,9 @@ func RunGoWatcher(ctx context.Context, dir string, rebuildChan chan<- struct{}, 
 				continue
 			}
 			if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Remove|fsnotify.Rename|fsnotify.Chmod) == 0 {
+				continue
+			}
+			if skipRebuild != nil && skipRebuild(event.Name) {
 				continue
 			}
 

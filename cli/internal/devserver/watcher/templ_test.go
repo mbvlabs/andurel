@@ -98,7 +98,7 @@ func TestTemplArgsLimitWatchToResources(t *testing.T) {
 	cases := map[string]bool{
 		filepath.Join(dir, "resources", "root.templ"):             true,
 		filepath.Join(dir, "resources", "nested", "page.templ"):   true,
-		filepath.Join(dir, "email", "verify_email.templ"):         false,
+		filepath.Join(dir, "emails", "verify_email.templ"):        false,
 		filepath.Join(dir, "resources", "root_templ.go"):          false,
 		filepath.Join(dir+"x", "resources", "root.templ"):         false,
 		filepath.Join("/other", "resources", "my.app", "a.templ"): false,
@@ -131,7 +131,7 @@ func TestRunTemplWatcherPassesPatternToTempl(t *testing.T) {
 
 // TestTemplWatchSkipsEmailWithRealTempl runs the pinned templ binary when it
 // is available (ANDUREL_TEST_TEMPL) and checks that a watch session generates
-// resources/ but leaves email/ alone.
+// resources/ but leaves emails/ alone.
 func TestTemplWatchSkipsEmailWithRealTempl(t *testing.T) {
 	templBin := os.Getenv("ANDUREL_TEST_TEMPL")
 	if templBin == "" {
@@ -150,8 +150,8 @@ func TestTemplWatchSkipsEmailWithRealTempl(t *testing.T) {
 	}
 	writeFile("go.mod", "module example.com/app\n\ngo 1.24\n")
 	writeFile("resources/root.templ", "package resources\n\ntempl Root() {\n\t<p>hi</p>\n}\n")
-	writeFile("email/mail.templ", "package email\n\ntempl Mail() {\n\t<p class=\"p-4\">hi</p>\n}\n")
-	writeFile("email/mail_templ.go", "package email\n// untouched by templ\n")
+	writeFile("emails/mail.templ", "package emails\n\ntempl Mail() {\n\t<p class=\"p-4\">hi</p>\n}\n")
+	writeFile("emails/mail_templ.go", "package emails\n// untouched by templ\n")
 	binPath := filepath.Join(dir, "bin", "templ")
 	if err := os.MkdirAll(filepath.Dir(binPath), 0o755); err != nil {
 		t.Fatal(err)
@@ -184,12 +184,12 @@ func TestTemplWatchSkipsEmailWithRealTempl(t *testing.T) {
 	if strings.Contains(string(rootGo), "FileName: `root.templ`") {
 		t.Fatal("generated file names must be relative to the project root")
 	}
-	mailGo, err := os.ReadFile(filepath.Join(dir, "email", "mail_templ.go"))
+	mailGo, err := os.ReadFile(filepath.Join(dir, "emails", "mail_templ.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(mailGo) != "package email\n// untouched by templ\n" {
-		t.Fatalf("templ watch rewrote email/mail_templ.go:\n%s", mailGo)
+	if string(mailGo) != "package emails\n// untouched by templ\n" {
+		t.Fatalf("templ watch rewrote emails/mail_templ.go:\n%s", mailGo)
 	}
 }
 

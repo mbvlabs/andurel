@@ -52,8 +52,7 @@ Two commands keep an agent honest:
 | Apply pending SQL (one-shot process) | `cmd/migrate/` |
 | Seed data | `seeds/` or `cmd/seeds/` following the existing pattern |
 | External provider adapters | A top-level package named for its job (for example `clients/`, `payment/`) |
-| Email data structs and send helpers | `email/` (`ToHTML`/`ToText` through `renderHTML`/`renderText`) |
-| React Email components (TSX) | `emails/`; exported to the committed `email/templates/` by `andurel sync emails` |
+| Email data structs, send helpers, and React Email components | `emails/` (`ToHTML`/`ToText` through `renderHTML`/`renderText`; TSX exported to `emails/templates/` by `andurel sync emails`) |
 | River job argument types | `queue/jobs/` (`pkg/storage` owns the generic email args) |
 | River workers and queue registration | `queue/` |
 | App configuration structs and environment loading | `config/` |
@@ -326,13 +325,14 @@ assembled in `app/`, not Fx.
 Recurring work returns a `*river.PeriodicJob` from `queue.PeriodicJobs()`,
 which `app.NewQueue` passes to `storage.WithRiverPeriodicJobs`.
 
-Put email data structs and send helpers in `email/` and the React Email
-components in `emails/`. A struct declares exported scalar fields and
+Put email data structs, send helpers and the React Email components in
+`emails/`. Go ignores the `.tsx` sources and the `_components/` and
+`_generated/` directories. A struct declares exported scalar fields and
 `ToHTML`/`ToText`, which call `renderHTML`/`renderText` on the committed
-`email/templates/<snake>.{html,txt}.tmpl`. Author the matching
+`emails/templates/<snake>.{html,txt}.tmpl`. Author the matching
 `emails/<kebab>.tsx` with the shared `Layout` and `theme.ts` tokens, then run
 `andurel sync emails` to regenerate `emails/_generated/` and the templates.
-`andurel email render` renders fixtures from `email/previews.go`. Put
+`andurel email render` renders fixtures from `emails/previews.go`. Put
 provider-specific adapters in a top-level package named for the provider (for
 example `clients/email/`).
 `EMAIL_PROVIDER` selects the scaffold transport: `mailpit` (local only, refused

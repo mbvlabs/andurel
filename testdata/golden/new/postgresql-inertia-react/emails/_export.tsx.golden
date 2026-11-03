@@ -5,8 +5,7 @@ import type { ComponentType } from "react"
 import { render } from "react-email"
 import { emails } from "./_generated/manifest"
 
-const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
-const outputDir = path.join(projectRoot, "email", "templates")
+const outputDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "templates")
 
 const placeholderCount = (value: string) => value.split("{{").length - 1
 
@@ -76,7 +75,7 @@ const main = async () => {
   for (const email of emails) {
     await exportEmail(email)
   }
-  console.log(`email:export wrote ${emails.length} email(s) to email/templates`)
+  console.log(`email:export wrote ${emails.length} email(s) to emails/templates`)
 }
 
 main().catch((error: unknown) => {

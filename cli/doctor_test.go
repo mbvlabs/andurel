@@ -459,7 +459,7 @@ func TestDoctorCollectReportAndCodeGenerationChecks(t *testing.T) {
 
 func TestCheckEmailsExportDetectsGeneratedDrift(t *testing.T) {
 	root := t.TempDir()
-	writeTestFile(t, root, "email/verify_email.go", `package email
+	writeTestFile(t, root, "emails/verify_email.go", `package emails
 
 type VerifyEmail struct {
 	VerificationCode string
@@ -468,6 +468,7 @@ type VerifyEmail struct {
 func (VerifyEmail) ToHTML() (string, error) { return "", nil }
 `)
 	writeTestFile(t, root, "emails/verify-email.tsx", "export default function VerifyEmail() { return null }\n")
+	writeTestFile(t, root, "emails/_export.tsx", "export {}\n")
 	writeTestFile(t, root, "emails/_generated/props.ts", "stale\n")
 	writeTestFile(t, root, "emails/_generated/manifest.ts", "stale\n")
 
@@ -483,7 +484,7 @@ func (VerifyEmail) ToHTML() (string, error) { return "", nil }
 
 func TestCheckEmailsExportSkipsExportWithoutNodeModules(t *testing.T) {
 	root := t.TempDir()
-	writeTestFile(t, root, "email/verify_email.go", `package email
+	writeTestFile(t, root, "emails/verify_email.go", `package emails
 
 type VerifyEmail struct {
 	VerificationCode string
@@ -492,6 +493,7 @@ type VerifyEmail struct {
 func (VerifyEmail) ToHTML() (string, error) { return "", nil }
 `)
 	writeTestFile(t, root, "emails/verify-email.tsx", "export default function VerifyEmail() { return null }\n")
+	writeTestFile(t, root, "emails/_export.tsx", "export {}\n")
 	if _, err := generateEmailsFiles(root); err != nil {
 		t.Fatalf("generateEmailsFiles: %v", err)
 	}

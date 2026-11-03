@@ -1505,12 +1505,12 @@ func generatedSourceFile(checkName, path string) string {
 			return before + ".templ"
 		}
 	case "emails export":
-		if name, ok := strings.CutPrefix(path, "email/templates/"); ok {
+		if name, ok := strings.CutPrefix(path, "emails/templates/"); ok {
 			name = strings.TrimSuffix(strings.TrimSuffix(name, ".html.tmpl"), ".txt.tmpl")
 			return "emails/" + naming.ToKebabCase(name) + ".tsx"
 		}
 		if strings.HasPrefix(path, "emails/_generated/") {
-			return "email/*.go"
+			return "emails/*.go"
 		}
 	}
 	return path

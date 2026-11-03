@@ -1016,14 +1016,14 @@ func TestGeneratedViolationsNameSourceFiles(t *testing.T) {
 		status:  statusFail,
 		message: "generated email output is out of date",
 		changed: []string{
-			"email/templates/verify_email.html.tmpl",
+			"emails/templates/verify_email.html.tmpl",
 			"emails/_generated/props.ts",
 		},
 	})
 	if len(email) != 2 ||
 		email[0].File != "emails/verify-email.tsx" ||
 		email[0].Fix != "andurel sync emails" ||
-		email[1].File != "email/*.go" {
+		email[1].File != "emails/*.go" {
 		t.Fatalf("email violations = %#v, want email source mappings", email)
 	}
 }

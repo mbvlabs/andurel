@@ -23,15 +23,15 @@ const (
 
 // EmailsWatcherConfig configures RunEmailsWatcher.
 type EmailsWatcherConfig struct {
-	// Dir is the project root holding email/ and emails/.
+	// Dir is the project root holding emails/.
 	Dir string
 	// Sync runs andurel sync emails: props.ts and manifest.ts generation plus
 	// the project's email:export script.
 	Sync func(ctx context.Context) error
 	// OnSynced runs after a successful sync, so the app and queue are rebuilt
-	// with the new embedded email/templates.
+	// with the new embedded emails/templates.
 	OnSynced func()
-	// OnTemplatesChanged runs after email/templates/*.tmpl changed outside a
+	// OnTemplatesChanged runs after emails/templates/*.tmpl changed outside a
 	// sync (git checkout, manual export), so the app and queue are rebuilt
 	// with the new embedded templates without re-running the export.
 	OnTemplatesChanged func()
@@ -42,49 +42,53 @@ type EmailsWatcherConfig struct {
 }
 
 // IsEmailsSource reports whether path is an input of andurel sync emails:
-// top-level email/*.go structs or any authored file under emails/. Generated
-// emails/_generated files and Go tests are ignored. email/templates is an
-// output, so it never triggers a sync loop.
+// top-level emails/*.go structs and authored .ts/.tsx files under emails/.
+// Generated emails/_generated files, committed emails/templates and Go tests
+// are ignored, as is anything under node_modules.
 func IsEmailsSource(rootDir, path string) bool {
-	cleanPath := filepath.Clean(path)
-	rel, err := filepath.Rel(rootDir, cleanPath)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+	rel, ok := relativeProjectPath(rootDir, path)
+	if !ok {
 		return false
 	}
-	rel = filepath.ToSlash(rel)
 
-	if strings.HasPrefix(rel, "emails/") {
-		if strings.HasPrefix(rel, "emails/_generated/") {
-			return false
-		}
-		return !strings.Contains(rel, "/node_modules/")
-	}
-
-	if !strings.HasPrefix(rel, "email/") {
+	if strings.HasPrefix(rel, "emails/templates/") ||
+		strings.HasPrefix(rel, "emails/_generated/") ||
+		strings.Contains(rel, "/node_modules/") {
 		return false
 	}
-	return filepath.Dir(rel) == "email" &&
-		strings.HasSuffix(rel, ".go") &&
-		!strings.HasSuffix(rel, "_test.go")
+	if !strings.HasPrefix(rel, "emails/") {
+		return false
+	}
+	if strings.HasSuffix(rel, ".go") {
+		return filepath.Dir(rel) == "emails" &&
+			!strings.HasSuffix(rel, "_test.go")
+	}
+	return strings.HasSuffix(rel, ".ts") || strings.HasSuffix(rel, ".tsx")
 }
 
 // IsEmailsTemplateOutput reports whether path is a committed exported
 // template. The Go watcher only rebuilds for .go files, so this watcher treats
 // template writes as a rebuild-only signal: re-running the export would loop.
 func IsEmailsTemplateOutput(rootDir, path string) bool {
-	cleanPath := filepath.Clean(path)
-	rel, err := filepath.Rel(rootDir, cleanPath)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+	rel, ok := relativeProjectPath(rootDir, path)
+	if !ok {
 		return false
 	}
-	rel = filepath.ToSlash(rel)
-	return strings.HasPrefix(rel, "email/templates/") &&
+	return strings.HasPrefix(rel, "emails/templates/") &&
 		strings.HasSuffix(rel, ".tmpl")
 }
 
+func relativeProjectPath(rootDir, path string) (string, bool) {
+	rel, err := filepath.Rel(rootDir, filepath.Clean(path))
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return filepath.ToSlash(rel), true
+}
+
 // RunEmailsWatcher watches the React Email inputs and syncs on change. It
-// returns an error only when the watcher cannot be created; missing email/
-// directories are tolerated because older scaffolds have no emails/ tree.
+// returns an error only when the watcher cannot be created; a missing emails/
+// directory is tolerated because Go-only scaffolds have no React Email tree.
 // Sync failures are reported through OnSyncError and the watcher keeps
 // running.
 func RunEmailsWatcher(ctx context.Context, cfg EmailsWatcherConfig) error {
@@ -98,21 +102,14 @@ func RunEmailsWatcher(ctx context.Context, cfg EmailsWatcherConfig) error {
 		}
 	}()
 
-	watched := false
-	for _, root := range []string{
-		filepath.Join(cfg.Dir, "email"),
-		filepath.Join(cfg.Dir, "emails"),
-	} {
-		added, err := addEmailsWatchDirectories(fsWatcher, root)
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			return err
+	added, err := addEmailsWatchDirectories(fsWatcher, filepath.Join(cfg.Dir, "emails"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
 		}
-		watched = watched || added
+		return err
 	}
-	if !watched {
+	if !added {
 		return nil
 	}
 

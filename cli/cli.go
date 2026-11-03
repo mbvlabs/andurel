@@ -103,8 +103,8 @@ production SSR process and is not started here.
 It watches:
   - Go files: rebuild and restart the app and the queue worker
   - resources/*.templ: templ generate --watch restricted to resources/ (TEMPL_DEV_MODE)
-  - email/*.go and emails/**: andurel sync emails regenerates props, manifest
-    and email/templates, then the app and queue rebuild
+  - emails/*.go and emails/**: andurel sync emails regenerates props, manifest
+    and emails/templates, then the app and queue rebuild
   - narsilc queries are generated once at start
 
 Log lines from the runner itself start with [run]. In a terminal the logs

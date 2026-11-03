@@ -12,7 +12,7 @@ import (
 	layouttemplates "github.com/mbvlabs/andurel/v2/layout/templates"
 )
 
-const fakeEmailPreviews = `package email
+const fakeEmailPreviews = `package emails
 
 type Transformer interface {
 	ToHTML() (string, error)
@@ -55,7 +55,7 @@ func Previews() []Preview {
 }
 `
 
-const fakeBrokenEmailPreviews = `package email
+const fakeBrokenEmailPreviews = `package emails
 
 import "errors"
 
@@ -83,7 +83,7 @@ func Previews() []Preview {
 func TestEmailPreviewTemplatesAreRegistered(t *testing.T) {
 	for templateName, want := range map[TmplTarget]TmplTargetPath{
 		"cmd_emails_main.tmpl": "cmd/emails/main.go",
-		"email_previews.tmpl":  "email/previews.go",
+		"email_previews.tmpl":  "emails/previews.go",
 	} {
 		if got := baseTemplateMappings[templateName]; got != want {
 			t.Fatalf("%s maps to %q, want %q", templateName, got, want)
@@ -115,14 +115,14 @@ func TestGeneratedEmailPreviewsCompile(t *testing.T) {
 	if err := renderTemplate(
 		root,
 		"email_previews.tmpl",
-		"email/previews.go",
+		"emails/previews.go",
 		layouttemplates.Files,
 		data,
 	); err != nil {
-		t.Fatalf("render email/previews template: %v", err)
+		t.Fatalf("render emails/previews template: %v", err)
 	}
 
-	writeGeneratedFile(t, root, "email/types.go", `package email
+	writeGeneratedFile(t, root, "emails/types.go", `package emails
 
 type VerifyEmail struct {
 	VerificationCode string
@@ -155,7 +155,7 @@ require github.com/mbvlabs/andurel/pkg/email v0.0.0
 replace github.com/mbvlabs/andurel/pkg/email => ./pkgemail
 `)
 
-	cmd := exec.Command("go", "vet", "./email")
+	cmd := exec.Command("go", "vet", "./emails")
 	cmd.Dir = root
 	cmd.Env = append(os.Environ(), "GOWORK=off")
 	if output, err := cmd.CombinedOutput(); err != nil {
@@ -366,7 +366,7 @@ func TestGeneratedEmailsCommandRendersGallery(t *testing.T) {
 
 func writePreviewFixtures(t *testing.T, root, content string) {
 	t.Helper()
-	writeGeneratedFile(t, root, "email/previews.go", content)
+	writeGeneratedFile(t, root, "emails/previews.go", content)
 }
 
 func writeGeneratedFile(t *testing.T, root, rel, content string) {

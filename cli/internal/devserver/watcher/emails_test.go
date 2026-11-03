@@ -20,8 +20,8 @@ func TestIsEmailsSource(t *testing.T) {
 		path string
 		want bool
 	}{
-		{name: "email struct", path: filepath.Join(root, "email", "verify_email.go"), want: true},
-		{name: "email render", path: filepath.Join(root, "email", "render.go"), want: true},
+		{name: "email struct", path: filepath.Join(root, "emails", "verify_email.go"), want: true},
+		{name: "email render", path: filepath.Join(root, "emails", "render.go"), want: true},
 		{
 			name: "email theme file",
 			path: filepath.Join(root, "emails", "theme.ts"),
@@ -44,12 +44,12 @@ func TestIsEmailsSource(t *testing.T) {
 		},
 		{
 			name: "email template output",
-			path: filepath.Join(root, "email", "templates", "verify_email.html.tmpl"),
+			path: filepath.Join(root, "emails", "templates", "verify_email.html.tmpl"),
 			want: false,
 		},
 		{
 			name: "email test file",
-			path: filepath.Join(root, "email", "verify_email_test.go"),
+			path: filepath.Join(root, "emails", "verify_email_test.go"),
 			want: false,
 		},
 		{name: "web go file", path: filepath.Join(root, "handlers", "pages.go"), want: false},
@@ -71,7 +71,7 @@ func TestIsEmailsSource(t *testing.T) {
 
 func TestRunEmailsWatcherSyncsChangedSource(t *testing.T) {
 	root := t.TempDir()
-	emailDir := filepath.Join(root, "email")
+	emailDir := filepath.Join(root, "emails")
 	emailsDir := filepath.Join(root, "emails", "_components")
 	for _, dir := range []string{emailDir, emailsDir} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -127,17 +127,17 @@ func TestIsEmailsTemplateOutput(t *testing.T) {
 	}{
 		{
 			name: "html template",
-			path: filepath.Join(root, "email", "templates", "verify_email.html.tmpl"),
+			path: filepath.Join(root, "emails", "templates", "verify_email.html.tmpl"),
 			want: true,
 		},
 		{
 			name: "text template",
-			path: filepath.Join(root, "email", "templates", "reset_password.txt.tmpl"),
+			path: filepath.Join(root, "emails", "templates", "reset_password.txt.tmpl"),
 			want: true,
 		},
 		{
 			name: "source struct",
-			path: filepath.Join(root, "email", "verify_email.go"),
+			path: filepath.Join(root, "emails", "verify_email.go"),
 			want: false,
 		},
 		{
@@ -147,7 +147,7 @@ func TestIsEmailsTemplateOutput(t *testing.T) {
 		},
 		{
 			name: "outside project",
-			path: filepath.Join(root, "..", "other", "email", "templates", "x.html.tmpl"),
+			path: filepath.Join(root, "..", "other", "emails", "templates", "x.html.tmpl"),
 			want: false,
 		},
 	}
@@ -163,7 +163,7 @@ func TestIsEmailsTemplateOutput(t *testing.T) {
 
 func TestRunEmailsWatcherRebuildsChangedTemplates(t *testing.T) {
 	root := t.TempDir()
-	templatesDir := filepath.Join(root, "email", "templates")
+	templatesDir := filepath.Join(root, "emails", "templates")
 	if err := os.MkdirAll(templatesDir, 0o755); err != nil {
 		t.Fatalf("mkdir templates: %v", err)
 	}
@@ -214,7 +214,7 @@ func TestRunEmailsWatcherRebuildsChangedTemplates(t *testing.T) {
 
 func TestRunEmailsWatcherIgnoresTemplatesWrittenBySync(t *testing.T) {
 	root := t.TempDir()
-	emailDir := filepath.Join(root, "email")
+	emailDir := filepath.Join(root, "emails")
 	emailsDir := filepath.Join(root, "emails")
 	templatesDir := filepath.Join(emailDir, "templates")
 	for _, dir := range []string{emailDir, emailsDir, templatesDir} {
@@ -223,7 +223,7 @@ func TestRunEmailsWatcherIgnoresTemplatesWrittenBySync(t *testing.T) {
 		}
 	}
 	sourcePath := filepath.Join(emailDir, "verify_email.go")
-	if err := os.WriteFile(sourcePath, []byte("package email\n"), 0o644); err != nil {
+	if err := os.WriteFile(sourcePath, []byte("package emails\n"), 0o644); err != nil {
 		t.Fatalf("write source: %v", err)
 	}
 	templatePath := filepath.Join(templatesDir, "verify_email.html.tmpl")
@@ -238,7 +238,7 @@ func TestRunEmailsWatcherIgnoresTemplatesWrittenBySync(t *testing.T) {
 		done <- RunEmailsWatcher(ctx, EmailsWatcherConfig{
 			Dir: root,
 			Sync: func(context.Context) error {
-				// The real export writes email/templates; those events must not
+				// The real export writes emails/templates; those events must not
 				// schedule a second rebuild after OnSynced already did.
 				if err := os.WriteFile(templatePath, []byte("<p>exported</p>\n"), 0o644); err != nil {
 					return err
@@ -257,7 +257,7 @@ func TestRunEmailsWatcherIgnoresTemplatesWrittenBySync(t *testing.T) {
 	})
 
 	time.Sleep(100 * time.Millisecond)
-	if err := os.WriteFile(sourcePath, []byte("package email\n\n// changed\n"), 0o644); err != nil {
+	if err := os.WriteFile(sourcePath, []byte("package emails\n\n// changed\n"), 0o644); err != nil {
 		t.Fatalf("update source: %v", err)
 	}
 
@@ -279,12 +279,12 @@ func TestRunEmailsWatcherIgnoresTemplatesWrittenBySync(t *testing.T) {
 
 func TestRunEmailsWatcherReportsSyncErrors(t *testing.T) {
 	root := t.TempDir()
-	emailDir := filepath.Join(root, "email")
+	emailDir := filepath.Join(root, "emails")
 	if err := os.MkdirAll(emailDir, 0o755); err != nil {
-		t.Fatalf("mkdir email: %v", err)
+		t.Fatalf("mkdir emails: %v", err)
 	}
 	structPath := filepath.Join(emailDir, "verify_email.go")
-	if err := os.WriteFile(structPath, []byte("package email\n"), 0o644); err != nil {
+	if err := os.WriteFile(structPath, []byte("package emails\n"), 0o644); err != nil {
 		t.Fatalf("write struct: %v", err)
 	}
 
@@ -312,7 +312,7 @@ func TestRunEmailsWatcherReportsSyncErrors(t *testing.T) {
 	})
 
 	time.Sleep(100 * time.Millisecond)
-	if err := os.WriteFile(structPath, []byte("package email\n\n// changed\n"), 0o644); err != nil {
+	if err := os.WriteFile(structPath, []byte("package emails\n\n// changed\n"), 0o644); err != nil {
 		t.Fatalf("update struct: %v", err)
 	}
 

@@ -90,7 +90,7 @@ application when you need delivery.
 
 Pass an email name to render only that email, --json for a machine-readable
 report, --open to open the gallery in the default browser, or --watch to keep
-the gallery live while editing emails/ and email/.`,
+the gallery live while editing emails/.`,
 		Example: `  andurel email render
   andurel email render verify_email
   andurel email render --json
@@ -110,7 +110,7 @@ the gallery live while editing emails/ and email/.`,
 		&watch,
 		"watch",
 		false,
-		"Re-render when emails/ or email/*.go change; incompatible with --json",
+		"Re-render when emails/ changes; incompatible with --json",
 	)
 
 	return cmd
@@ -129,7 +129,7 @@ func runEmailRender(cmd *cobra.Command, name string, openGallery, watch bool) er
 				output.CodeMissingTool,
 				fmt.Sprintf("email preview entrypoint not found at %s", cmdEmailsMain),
 				output.ExitDependency,
-				"This scaffold is older; copy cmd/emails/main.go and email/previews.go from a fresh andurel new project.",
+				"This scaffold is older; copy cmd/emails/main.go and emails/previews.go from a fresh andurel new project.",
 			)
 		}
 		return err

@@ -36,7 +36,7 @@ var templShutdownTimeout = 2 * time.Second
 // TemplWatchDir is the only directory `templ generate --watch` covers. The
 // Inertia root document in resources/ is the only page templ in the scaffold.
 // Email templates are React Email sources under emails/, exported to
-// email/templates by andurel sync emails, so plain templ never touches them.
+// emails/templates by andurel sync emails, so plain templ never touches them.
 const TemplWatchDir = "resources"
 
 type TemplWatcherConfig struct {

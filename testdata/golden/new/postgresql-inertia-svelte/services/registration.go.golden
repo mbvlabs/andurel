@@ -9,7 +9,7 @@ import (
 	"uuid"
 
 	"app/domains"
-	appemail "app/email"
+	appemails "app/emails"
 	"app/queue/jobs"
 
 	"github.com/mbvlabs/andurel/pkg/email"
@@ -122,7 +122,7 @@ func (i Identity) VerificationEmail(
 		return email.TransactionalData{}, fmt.Errorf("replace verification token: %w", err)
 	}
 
-	vEmail := appemail.VerifyEmail{VerificationCode: code}
+	vEmail := appemails.VerifyEmail{VerificationCode: code}
 
 	data, err := email.Compose(
 		vEmail,

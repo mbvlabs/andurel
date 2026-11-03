@@ -43,7 +43,7 @@ const (
 )
 
 // classifyEmailWatchEvent maps a changed path to the work it requires.
-// Authored TSX and email/*.go are sync inputs; committed templates are
+// Authored TSX and emails/*.go are sync inputs; committed templates are
 // render-only because the export wrote them.
 func classifyEmailWatchEvent(rootDir, path string) emailWatchEvent {
 	switch {
@@ -154,16 +154,16 @@ func runEmailRenderWatch(cmd *cobra.Command, rootDir, name string, openGallery b
 		_ = fsWatcher.Close()
 		return output.NewError(
 			output.CodeError,
-			"nothing to watch: email/ and emails/ are both missing",
+			"nothing to watch: emails/ is missing",
 			output.ExitDependency,
-			"Create email/*.go or emails/ before running andurel email render --watch.",
+			"Create emails/*.go before running andurel email render --watch.",
 		)
 	}
 	defer func() {
 		_ = fsWatcher.Close()
 	}()
 
-	fmt.Fprintln(out, "watching emails/, email/*.go and email/templates/; press Ctrl-C to stop")
+	fmt.Fprintln(out, "watching emails/ and emails/templates/; press Ctrl-C to stop")
 
 	syncEmails := func(ctx context.Context) error {
 		start := time.Now()
@@ -191,22 +191,18 @@ func newEmailRenderWatcher(rootDir string) (*fsnotify.Watcher, bool, error) {
 		return nil, false, fmt.Errorf("create email watcher: %w", err)
 	}
 
-	watched := false
-	for _, dir := range []string{"email", "emails"} {
-		root := filepath.Join(rootDir, dir)
-		if _, statErr := os.Stat(root); statErr != nil {
-			if os.IsNotExist(statErr) {
-				continue
-			}
-			_ = fsWatcher.Close()
-			return nil, false, statErr
+	root := filepath.Join(rootDir, "emails")
+	if _, statErr := os.Stat(root); statErr != nil {
+		if os.IsNotExist(statErr) {
+			return fsWatcher, false, nil
 		}
-		added, err := addEmailRenderWatchTree(fsWatcher, root, rootDir)
-		if err != nil {
-			_ = fsWatcher.Close()
-			return nil, false, err
-		}
-		watched = watched || added
+		_ = fsWatcher.Close()
+		return nil, false, statErr
+	}
+	watched, err := addEmailRenderWatchTree(fsWatcher, root, rootDir)
+	if err != nil {
+		_ = fsWatcher.Close()
+		return nil, false, err
 	}
 	return fsWatcher, watched, nil
 }

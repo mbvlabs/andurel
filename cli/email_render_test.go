@@ -108,7 +108,7 @@ func TestEmailRenderMissingEntrypointExplainsHowToUpdate(t *testing.T) {
 	if !strings.Contains(cliErr.Message, filepath.Join("cmd", "emails", "main.go")) {
 		t.Fatalf("missing entrypoint message = %q", cliErr.Message)
 	}
-	if !strings.Contains(cliErr.Hint, "copy cmd/emails/main.go and email/previews.go") {
+	if !strings.Contains(cliErr.Hint, "copy cmd/emails/main.go and emails/previews.go") {
 		t.Fatalf("missing entrypoint hint = %q", cliErr.Hint)
 	}
 }
@@ -199,9 +199,6 @@ func TestEmailRenderWatchRendersWithWatchFlagAndOpensOnce(t *testing.T) {
 	root := t.TempDir()
 	writeGoModule(t, root)
 	writeTestFile(t, root, "cmd/emails/main.go", "package main\n")
-	if err := os.MkdirAll(filepath.Join(root, "email"), 0o755); err != nil {
-		t.Fatalf("mkdir email: %v", err)
-	}
 	if err := os.MkdirAll(filepath.Join(root, "emails"), 0o755); err != nil {
 		t.Fatalf("mkdir emails: %v", err)
 	}

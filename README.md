@@ -162,8 +162,7 @@ A new app is ordinary Go you own. Top-level shape:
 | `middleware/` | App HTTP middleware (auth, authorization); the cookie jar is built in `app/` |
 | `resources/root.templ` | Inertia root document (the only templ) |
 | `resources/js/` | Inertia pages, layouts, components, and generated TS helpers |
-| `email/` | Go email structs (`ToHTML`/`ToText`), committed `text/template` bodies, and send helpers |
-| `emails/` | React Email components in TSX, exported by `andurel sync emails` |
+| `emails/` | Go email structs (`ToHTML`/`ToText`), committed `text/template` bodies, and React Email TSX components exported by `andurel sync emails` |
 | `queue/` | River jobs and workers |
 | `migrations/` | SQL migrations |
 | `seeds/` | Seed data |

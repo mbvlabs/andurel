@@ -423,7 +423,7 @@ func (u Users) Find(ctx context.Context) (User, error) {
 
 func TestEntityColumnsUnrelatedTransformerInterfaceDoesNotSkip(t *testing.T) {
 	root := writeEntityColumnsProject(t, map[string]string{
-		"email/email.go": `package email
+		"emails/email.go": `package emails
 
 type UserRow struct{}
 
@@ -437,7 +437,7 @@ import (
 	"context"
 
 	"example.com/app/domains/internal/queries"
-	"example.com/app/email"
+	"example.com/app/emails"
 )
 
 type Users struct {
@@ -449,7 +449,7 @@ type User struct {
 	Email string §andurel:"emial"§
 }
 
-func (u *User) Transform(row email.UserRow) error {
+func (u *User) Transform(row emails.UserRow) error {
 	return nil
 }
 

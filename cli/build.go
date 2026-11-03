@@ -75,7 +75,7 @@ deployment.
 This command:
   • Generates Go from .templ files (Inertia root)
   • Generates narsilc code when domains/**/*.sql contains SQL files
-  • Generates React Email props and exports email/templates (when emails/ exists)
+  • Generates React Email props and exports emails/templates (when emails/ exists)
   • Builds Vite client assets and the SSR bundle (when Inertia is configured)
   • Builds cmd/app, cmd/queue, cmd/migrate, and cmd/ssr into dist/ (or --output-dir)
   • Injects the version string via ldflags (from --version or git describe)

@@ -137,7 +137,7 @@ func TestBuildAppRunsExpectedToolchain(t *testing.T) {
 	root := t.TempDir()
 	writeTestFile(t, root, "go.mod", "module example.com/app\n\ngo 1.27.1\n")
 	writeTestFile(t, root, "cmd/app/main.go", "package main\n\nfunc main() {}\n")
-	writeTestFile(t, root, "email/verify_email.go", `package email
+	writeTestFile(t, root, "emails/verify_email.go", `package emails
 
 type VerifyEmail struct {
 	VerificationCode string
@@ -146,6 +146,7 @@ type VerifyEmail struct {
 func (VerifyEmail) ToHTML() (string, error) { return "", nil }
 `)
 	writeTestFile(t, root, "emails/verify-email.tsx", "export default function VerifyEmail() { return null }\n")
+	writeTestFile(t, root, "emails/_export.tsx", "export {}\n")
 	writeTestFile(t, root, "node_modules/.keep", "")
 	lock := layout.NewAndurelLock("test")
 	lock.Tools["templ"] = validTestTool("templ", "v0.3.0")

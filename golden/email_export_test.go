@@ -42,12 +42,12 @@ func TestEmailExportMatchesCommittedTemplates(t *testing.T) {
 		t.Skipf("pnpm install unavailable, skipping email export comparison: %v\n%s", err, out)
 	}
 
-	templatePaths, err := filepath.Glob(filepath.Join(project, "email", "templates", "*.tmpl"))
+	templatePaths, err := filepath.Glob(filepath.Join(project, "emails", "templates", "*.tmpl"))
 	if err != nil {
 		t.Fatalf("glob email templates: %v", err)
 	}
 	if len(templatePaths) == 0 {
-		t.Fatal("generated project has no email/templates/*.tmpl")
+		t.Fatal("generated project has no emails/templates/*.tmpl")
 	}
 	before := make(map[string][]byte, len(templatePaths))
 	for _, path := range templatePaths {

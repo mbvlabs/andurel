@@ -225,14 +225,14 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"psql_queue_workers_delete_expired_tokens.tmpl":     "queue/delete_expired_tokens.go",
 
 	// Email
-	"email_previews.tmpl":                      "email/previews.go",
-	"email_render_go.tmpl":                     "email/render.go",
-	"email_reset_password.tmpl":                "email/reset_password.go",
-	"email_verify_email.tmpl":                  "email/verify_email.go",
-	"email_templates_reset_password_html.tmpl": "email/templates/reset_password.html.tmpl",
-	"email_templates_reset_password_txt.tmpl":  "email/templates/reset_password.txt.tmpl",
-	"email_templates_verify_email_html.tmpl":   "email/templates/verify_email.html.tmpl",
-	"email_templates_verify_email_txt.tmpl":    "email/templates/verify_email.txt.tmpl",
+	"email_previews.tmpl":                      "emails/previews.go",
+	"email_render_go.tmpl":                     "emails/render.go",
+	"email_reset_password.tmpl":                "emails/reset_password.go",
+	"email_verify_email.tmpl":                  "emails/verify_email.go",
+	"email_templates_reset_password_html.tmpl": "emails/templates/reset_password.html.tmpl",
+	"email_templates_reset_password_txt.tmpl":  "emails/templates/reset_password.txt.tmpl",
+	"email_templates_verify_email_html.tmpl":   "emails/templates/verify_email.html.tmpl",
+	"email_templates_verify_email_txt.tmpl":    "emails/templates/verify_email.txt.tmpl",
 
 	// Domains
 	"domains_errors.tmpl":                  "domains/errors.go",
@@ -375,9 +375,10 @@ func isStaticInertiaAssetTemplate(templateFile TmplTarget) bool {
 
 // isStaticScaffoldTemplate reports files that must be copied byte-for-byte
 // instead of executed as Go templates. Authored React Email sources contain
-// JSX style objects ({{...}}), and the exported email templates are themselves
-// Go text/template sources whose {{.Field}} placeholders must survive
-// scaffolding.
+// JSX style objects ({{...}}), and the exported email templates and generated
+// props are themselves Go text/template sources whose {{.Field}} placeholders
+// must survive scaffolding. emails/*.go holds both the Go package and the
+// committed React Email output, so the whole directory is copied verbatim.
 func isStaticScaffoldTemplate(
 	templateFile TmplTarget,
 	targetPath TmplTargetPath,
@@ -385,9 +386,7 @@ func isStaticScaffoldTemplate(
 	if isStaticInertiaAssetTemplate(templateFile) {
 		return true
 	}
-	path := string(targetPath)
-	return strings.HasPrefix(path, "emails/") ||
-		strings.HasPrefix(path, "email/templates/")
+	return strings.HasPrefix(string(targetPath), "emails/")
 }
 
 // GetInternalFrameworkFiles returns template-backed files that upgrades own

@@ -34,45 +34,46 @@ func TestScaffoldEmailTemplatesRenderWithTextTemplate(t *testing.T) {
 
 	for _, name := range []string{"verify_email", "reset_password"} {
 		for _, ext := range []string{"html", "txt"} {
-			path := filepath.Join(root, "email", "templates", name+"."+ext+".tmpl")
+			path := filepath.Join(root, "emails", "templates", name+"."+ext+".tmpl")
 			if _, err := os.Stat(path); err != nil {
 				t.Fatalf("scaffold did not write %s: %v", path, err)
 			}
 		}
 	}
 
-	verifySource, err := os.ReadFile(filepath.Join(root, "email", "verify_email.go"))
+	verifySource, err := os.ReadFile(filepath.Join(root, "emails", "verify_email.go"))
 	if err != nil {
-		t.Fatalf("read email/verify_email.go: %v", err)
+		t.Fatalf("read emails/verify_email.go: %v", err)
 	}
 	for _, want := range []string{
+		"package emails",
 		`renderHTML("verify_email", v)`,
 		`renderText("verify_email", v)`,
 		`var _ pkgemail.Transformer = (*VerifyEmail)(nil)`,
 	} {
 		if !strings.Contains(string(verifySource), want) {
-			t.Errorf("email/verify_email.go missing %q", want)
+			t.Errorf("emails/verify_email.go missing %q", want)
 		}
 	}
-	renderSource, err := os.ReadFile(filepath.Join(root, "email", "render.go"))
+	renderSource, err := os.ReadFile(filepath.Join(root, "emails", "render.go"))
 	if err != nil {
-		t.Fatalf("read email/render.go: %v", err)
+		t.Fatalf("read emails/render.go: %v", err)
 	}
 	for _, want := range []string{
 		`"text/template"`,
 		`//go:embed templates/*.tmpl`,
 	} {
 		if !strings.Contains(string(renderSource), want) {
-			t.Errorf("email/render.go missing %q", want)
+			t.Errorf("emails/render.go missing %q", want)
 		}
 	}
 	if strings.Contains(string(renderSource), `"html/template"`) {
-		t.Error("email/render.go must use text/template so MSO comments survive")
+		t.Error("emails/render.go must use text/template so MSO comments survive")
 	}
 
 	verifyHTML := executeEmailTemplateForTest(
 		t,
-		filepath.Join(root, "email", "templates", "verify_email.html.tmpl"),
+		filepath.Join(root, "emails", "templates", "verify_email.html.tmpl"),
 		struct{ VerificationCode string }{VerificationCode: "482917"},
 	)
 	if !strings.Contains(verifyHTML, "482917") {
@@ -80,7 +81,7 @@ func TestScaffoldEmailTemplatesRenderWithTextTemplate(t *testing.T) {
 	}
 	verifyText := executeEmailTemplateForTest(
 		t,
-		filepath.Join(root, "email", "templates", "verify_email.txt.tmpl"),
+		filepath.Join(root, "emails", "templates", "verify_email.txt.tmpl"),
 		struct{ VerificationCode string }{VerificationCode: "482917"},
 	)
 	if !strings.Contains(verifyText, "482917") {
@@ -90,7 +91,7 @@ func TestScaffoldEmailTemplatesRenderWithTextTemplate(t *testing.T) {
 	resetURL := `https://x.test/r?a=1&b=<2>"x`
 	resetHTML := executeEmailTemplateForTest(
 		t,
-		filepath.Join(root, "email", "templates", "reset_password.html.tmpl"),
+		filepath.Join(root, "emails", "templates", "reset_password.html.tmpl"),
 		struct{ ResetURL string }{ResetURL: resetURL},
 	)
 	for _, want := range []string{
@@ -108,7 +109,7 @@ func TestScaffoldEmailTemplatesRenderWithTextTemplate(t *testing.T) {
 
 	resetText := executeEmailTemplateForTest(
 		t,
-		filepath.Join(root, "email", "templates", "reset_password.txt.tmpl"),
+		filepath.Join(root, "emails", "templates", "reset_password.txt.tmpl"),
 		struct{ ResetURL string }{ResetURL: resetURL},
 	)
 	if !strings.Contains(resetText, resetURL) {
@@ -145,10 +146,18 @@ func TestScaffoldWritesReactEmailSources(t *testing.T) {
 				"emails/_generated/props.ts",
 				"emails/_generated/manifest.ts",
 				"emails/tsconfig.json",
+				"emails/render.go",
+				"emails/verify_email.go",
+				"emails/reset_password.go",
+				"emails/previews.go",
+				"emails/templates/verify_email.html.tmpl",
 			} {
 				if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(path))); err != nil {
 					t.Fatalf("scaffold did not write %s: %v", path, err)
 				}
+			}
+			if _, err := os.Stat(filepath.Join(root, "email")); !os.IsNotExist(err) {
+				t.Errorf("scaffold wrote a top-level email/ directory; want only emails/")
 			}
 			packageJSON, err := os.ReadFile(filepath.Join(root, "package.json"))
 			if err != nil {
@@ -214,7 +223,7 @@ func executeEmailTemplateForTest(t *testing.T, path string, data any) string {
 
 func emailTemplateFilesForTest(t *testing.T, root string) []string {
 	t.Helper()
-	paths, err := filepath.Glob(filepath.Join(root, "email", "templates", "*.tmpl"))
+	paths, err := filepath.Glob(filepath.Join(root, "emails", "templates", "*.tmpl"))
 	if err != nil {
 		t.Fatalf("glob email templates: %v", err)
 	}

@@ -25,7 +25,7 @@ func TestClassifyEmailWatchEvent(t *testing.T) {
 		},
 		{
 			name: "email go struct",
-			path: filepath.Join(root, "email", "verify_email.go"),
+			path: filepath.Join(root, "emails", "verify_email.go"),
 			want: emailWatchEventSync,
 		},
 		{
@@ -40,22 +40,22 @@ func TestClassifyEmailWatchEvent(t *testing.T) {
 		},
 		{
 			name: "committed html template",
-			path: filepath.Join(root, "email", "templates", "verify_email.html.tmpl"),
+			path: filepath.Join(root, "emails", "templates", "verify_email.html.tmpl"),
 			want: emailWatchEventRender,
 		},
 		{
 			name: "committed text template",
-			path: filepath.Join(root, "email", "templates", "verify_email.txt.tmpl"),
+			path: filepath.Join(root, "emails", "templates", "verify_email.txt.tmpl"),
 			want: emailWatchEventRender,
 		},
 		{
 			name: "email test file",
-			path: filepath.Join(root, "email", "verify_email_test.go"),
+			path: filepath.Join(root, "emails", "verify_email_test.go"),
 			want: emailWatchEventNone,
 		},
 		{
 			name: "nested email go file",
-			path: filepath.Join(root, "email", "internal", "verify_email.go"),
+			path: filepath.Join(root, "emails", "internal", "verify_email.go"),
 			want: emailWatchEventNone,
 		},
 		{
@@ -116,7 +116,7 @@ func TestEmailWatchCycleSuppressesOwnExportOutput(t *testing.T) {
 		t.Fatalf("take() = %v, want sync", got)
 	}
 
-	// The export writes email/templates/*.tmpl; those events must not start a
+	// The export writes emails/templates/*.tmpl; those events must not start a
 	// second sync or a second render.
 	cycle.finishSync(now)
 	if cycle.observe(emailWatchEventRender, now.Add(time.Second)) {

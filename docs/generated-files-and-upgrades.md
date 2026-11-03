@@ -1,6 +1,6 @@
 # Generated files and upgrade behavior
 
-Every file `andurel new` writes belongs to the application: `cmd/`, `config/`, `domains/`, `handlers/`, `middleware/`, `app/`, `payloads/`, `queue/`, `email/`, `emails/`, `resources/`, `migrations/`, and the rest. Framework behavior lives in the standalone `github.com/mbvlabs/andurel/pkg/*` modules, which the application imports like any other library.
+Every file `andurel new` writes belongs to the application: `cmd/`, `config/`, `domains/`, `handlers/`, `middleware/`, `app/`, `payloads/`, `queue/`, `emails/`, `resources/`, `migrations/`, and the rest. Framework behavior lives in the standalone `github.com/mbvlabs/andurel/pkg/*` modules, which the application imports like any other library.
 
 `andurel upgrade` therefore never rewrites application source. A real upgrade:
 

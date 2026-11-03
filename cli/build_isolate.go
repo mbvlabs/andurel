@@ -30,7 +30,7 @@ var sourcePathDenyList = map[string]bool{
 	"cmd":        true,
 	"config":     true,
 	"domains":    true,
-	"email":      true,
+	"emails":     true,
 	"handlers":   true,
 	"internal":   true,
 	"middleware": true,

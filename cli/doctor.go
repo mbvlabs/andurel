@@ -292,7 +292,7 @@ func doctorHint(result checkResult) string {
 	case "templ generate":
 		return "Commit the generated *_templ.go output (andurel build regenerates it) and fix any template errors."
 	case "emails export":
-		return "Run andurel sync emails and commit the updated emails/_generated and email/templates files."
+		return "Run andurel sync emails and commit the updated emails/_generated and emails/templates files."
 	case "narsilc generate":
 		return "Run andurel sync queries and commit the updated domains/internal/queries output."
 	case "routes.ts":
@@ -1397,7 +1397,7 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 }
 
 // checkEmailsExport compares emails/_generated props/manifest and the committed
-// email/templates to a fresh generation and export. The export needs installed
+// emails/templates to a fresh generation and export. The export needs installed
 // frontend dependencies, so a project without node_modules reports a skip with
 // the install command instead of a failure.
 func checkEmailsExport(rootDir string, verbose bool) checkResult {
@@ -1409,7 +1409,7 @@ func checkEmailsExport(rootDir string, verbose bool) checkResult {
 			message: "no React Email templates configured",
 		}
 	}
-	if info, err := os.Stat(filepath.Join(rootDir, "email")); err != nil || !info.IsDir() {
+	if info, err := os.Stat(filepath.Join(rootDir, "emails")); err != nil || !info.IsDir() {
 		return checkResult{
 			name:    name,
 			status:  statusPass,
@@ -1476,7 +1476,7 @@ func checkEmailsExport(rootDir string, verbose bool) checkResult {
 	}
 	if len(changed) > 0 {
 		details := []string{
-			"Run 'andurel sync emails' and commit the updated emails/_generated and email/templates files.",
+			"Run 'andurel sync emails' and commit the updated emails/_generated and emails/templates files.",
 		}
 		if verbose {
 			details = append(details, changed...)
@@ -1490,7 +1490,7 @@ func checkEmailsExport(rootDir string, verbose bool) checkResult {
 		}
 	}
 	if exportSkipped {
-		fix := "Run '" + packageManager + " install' to check email/templates drift."
+		fix := "Run '" + packageManager + " install' to check emails/templates drift."
 		return checkResult{
 			name:        name,
 			status:      statusSkip,
@@ -1525,17 +1525,17 @@ func compareEmailsGeneratedFiles(rootDir, tempRoot string) []string {
 }
 
 func compareEmailTemplateFiles(rootDir, tempRoot string) ([]string, error) {
-	expected, err := snapshotOptionalDir(filepath.Join(tempRoot, "email", "templates"))
+	expected, err := snapshotOptionalDir(filepath.Join(tempRoot, "emails", "templates"))
 	if err != nil {
 		return nil, err
 	}
-	actual, err := snapshotOptionalDir(filepath.Join(rootDir, "email", "templates"))
+	actual, err := snapshotOptionalDir(filepath.Join(rootDir, "emails", "templates"))
 	if err != nil {
 		return nil, err
 	}
 	paths := changedSnapshotPaths(actual, expected)
 	for i := range paths {
-		paths[i] = "email/templates/" + paths[i]
+		paths[i] = "emails/templates/" + paths[i]
 	}
 	return paths, nil
 }

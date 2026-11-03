@@ -2,7 +2,7 @@
 //
 // Run builds and supervises cmd/app and cmd/queue, puts a live-reload proxy in
 // front of the app, runs the Vite dev server (which also serves development
-// SSR), watches Go files, resources/*.templ, email/*.go and emails/**, and
+// SSR), watches Go files, resources/*.templ and emails/**, and
 // starts allowlisted sidecar tools. Cancel the context to stop everything.
 package devserver
 
@@ -70,7 +70,7 @@ type Options struct {
 	AppPort   string
 	// SyncEmails runs andurel sync emails (props/manifest generation plus the
 	// project's email:export script). When set, Run syncs once before the
-	// first build and again whenever email/*.go or emails/** changes, then
+	// first build and again whenever emails/** changes, then
 	// rebuilds the app and queue with the new embedded templates. Nil
 	// disables email handling.
 	SyncEmails func(ctx context.Context, log io.Writer) error
@@ -212,8 +212,25 @@ func Run(ctx context.Context, opts Options) error {
 		}
 	})
 
+	// When the emails watcher owns emails/*.go, it syncs first and requests
+	// the rebuild after the export, so the Go watcher must not request a
+	// second rebuild for the same edit.
+	var skipGoRebuild func(path string) bool
+	if syncEmails != nil {
+		skipGoRebuild = func(path string) bool {
+			return watcher.IsEmailsSource(opts.Dir, path)
+		}
+	}
+
 	wg.Go(func() {
-		if err := watcher.RunGoWatcher(ctx, opts.Dir, rebuildChan, opts.Verbose, buildLog); err != nil {
+		if err := watcher.RunGoWatcher(
+			ctx,
+			opts.Dir,
+			rebuildChan,
+			skipGoRebuild,
+			opts.Verbose,
+			buildLog,
+		); err != nil {
 			errChan <- fmt.Errorf("go-watcher: %w", err)
 		}
 	})
@@ -373,7 +390,7 @@ func Run(ctx context.Context, opts Options) error {
 	_, _ = fmt.Fprintf(buildLog, "  Inertia frontend: %s run dev (Vite dev server)\n", opts.PackageManager)
 	_, _ = fmt.Fprintf(buildLog, "  Inertia SSR:      Vite /__inertia_ssr\n")
 	if syncEmails != nil {
-		_, _ = fmt.Fprintf(buildLog, "  Email templates:  synced on change (email/*.go, emails/**)\n")
+		_, _ = fmt.Fprintf(buildLog, "  Email templates:  synced on change (emails/**)\n")
 	}
 	if len(opts.Tools) > 0 {
 		_, _ = fmt.Fprintf(buildLog, "  Sidecar tools:  %s\n", formatToolList(opts.Tools))

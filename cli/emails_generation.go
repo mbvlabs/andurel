@@ -66,7 +66,7 @@ func newGenerateEmailsCommand() *cobra.Command {
 		Short: "Generate TypeScript email props and export Go email templates",
 		Long: `Generate the typed React Email props and export the Go email templates.
 
-Every exported struct in email/*.go that declares ToHTML() (string, error) is
+Every exported struct in emails/*.go that declares ToHTML() (string, error) is
 emitted. Scalar fields become TypeScript values: string stays string, integers
 and float64 become number | string so a component can take real numbers from
 fixture data and generated Go template placeholders. Slices, maps, bools, structs,
@@ -76,7 +76,7 @@ field in Go, because emails support scalar fields only.
 It writes emails/_generated/props.ts with <Name>Props, <Name>HtmlVars and
 <Name>TextVars, and emails/_generated/manifest.ts consumed by emails/_export.tsx.
 It then runs the project's email:export script, which writes the committed
-email/templates/*.tmpl files. Run it after changing email/*.go or emails/**.`,
+emails/templates/*.tmpl files. Run it after changing emails/*.go or emails/**.`,
 		Example: `  andurel sync emails
   andurel sync emails --skip-export
   andurel sync emails --json`,
@@ -120,7 +120,7 @@ email/templates/*.tmpl files. Run it after changing email/*.go or emails/**.`,
 	setAgentMetadata(
 		cmd,
 		"generation",
-		"Writes emails/_generated/props.ts and emails/_generated/manifest.ts from exported email/*.go structs with a ToHTML method, then runs the project's email:export script to regenerate email/templates/*.tmpl. Use --skip-export when frontend dependencies are not installed. Use --json for generated files, template count and whether the export ran.",
+		"Writes emails/_generated/props.ts and emails/_generated/manifest.ts from exported emails/*.go structs with a ToHTML method, then runs the project's email:export script to regenerate emails/templates/*.tmpl. Use --skip-export when frontend dependencies are not installed. Use --json for generated files, template count and whether the export ran.",
 	)
 	return cmd
 }
@@ -132,17 +132,16 @@ func emailsReportSummary(report emailsReport) string {
 		generatedEmailsDir,
 	)
 	if report.Exported {
-		summary += " and exported email/templates"
+		summary += " and exported emails/templates"
 	}
 	return summary
 }
 
 // hasReactEmails reports whether the project carries the React Email
-// authoring scaffold. Older scaffolds without emails/ keep the Go-only email
-// path.
+// authoring scaffold. Go-only scaffolds keep the Go email path.
 func hasReactEmails(rootDir string) bool {
-	info, err := os.Stat(filepath.Join(rootDir, "emails"))
-	return err == nil && info.IsDir()
+	info, err := os.Stat(filepath.Join(rootDir, "emails", "_export.tsx"))
+	return err == nil && !info.IsDir()
 }
 
 // runEmailsExport runs the project's email:export script through its recorded
@@ -215,16 +214,16 @@ func renderEmailsTS(rootDir string) ([]byte, []byte, int, error) {
 }
 
 func scanEmails(rootDir string) ([]emailTemplate, error) {
-	emailDir := filepath.Join(rootDir, "email")
-	entries, err := os.ReadDir(emailDir)
+	emailsDir := filepath.Join(rootDir, "emails")
+	entries, err := os.ReadDir(emailsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, generationFailed(
-				"email directory not found",
-				"Create email/*.go with an exported struct that declares ToHTML() (string, error).",
+				"emails directory not found",
+				"Create emails/*.go with an exported struct that declares ToHTML() (string, error).",
 			)
 		}
-		return nil, fmt.Errorf("read email directory: %w", err)
+		return nil, fmt.Errorf("read emails directory: %w", err)
 	}
 
 	scan := &emailScan{
@@ -238,7 +237,7 @@ func scanEmails(rootDir string) ([]emailTemplate, error) {
 			strings.HasSuffix(entry.Name(), "_test.go") {
 			continue
 		}
-		if err := scan.parseFile(filepath.Join(emailDir, entry.Name())); err != nil {
+		if err := scan.parseFile(filepath.Join(emailsDir, entry.Name())); err != nil {
 			return nil, err
 		}
 	}
@@ -295,10 +294,10 @@ func (s *emailScan) parseFile(path string) error {
 	if err != nil {
 		return fmt.Errorf("parse email file %s: %w", path, err)
 	}
-	if file.Name.Name != "email" {
+	if file.Name.Name != "emails" {
 		return generationFailed(
-			fmt.Sprintf("%s: package %s; email structs belong in package email", path, file.Name.Name),
-			"Move the declaration to email/ and declare package email.",
+			fmt.Sprintf("%s: package %s; email structs belong in package emails", path, file.Name.Name),
+			"Move the declaration to emails/ and declare package emails.",
 		)
 	}
 	sourceFile := routeManifestSourceFile(s.rootDir, path)
@@ -463,7 +462,7 @@ func emailFieldType(expr ast.Expr) (string, bool) {
 func renderEmailsPropsTS(templates []emailTemplate) []byte {
 	var buf bytes.Buffer
 	buf.WriteString(generatedEmailsHeader)
-	buf.WriteString("\n// Edit the structs in email/*.go, then run andurel sync emails.\n")
+	buf.WriteString("\n// Edit the structs in emails/*.go, then run andurel sync emails.\n")
 	if emailsHaveNumericFields(templates) {
 		buf.WriteString(
 			"// Numeric Go fields are number | string: fixture data passes a number,\n" +
