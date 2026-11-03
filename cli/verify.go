@@ -194,7 +194,7 @@ andurel verify checks, in order:
   • go vet    — the module vets clean
   • layers    — the typed persistence, transaction, and domain transport rules
   • frontend  — the package.json typecheck script and the route-usage rule
-  • generated — templ, emails, narsilc, routes.ts, and payloads.ts output is up to date
+  • generated — emails, narsilc, routes.ts, and payloads.ts output is up to date
   • content   — the invariants declared in andurel.content.toml
   • go test   — go test -json (only with --with-tests or --only go-test)
 
@@ -1496,14 +1496,10 @@ func generatedViolations(result checkResult) []verifyViolation {
 }
 
 // generatedSourceFile maps a generated path back to the authored file an agent
-// should edit. templ renderers are named after their .templ source, and the
-// exported email templates are named after their React Email component.
+// should edit. Exported email templates are named after their React Email
+// component.
 func generatedSourceFile(checkName, path string) string {
 	switch checkName {
-	case "templ generate":
-		if before, ok := strings.CutSuffix(path, "_templ.go"); ok {
-			return before + ".templ"
-		}
 	case "emails export":
 		if name, ok := strings.CutPrefix(path, "emails/templates/"); ok {
 			name = strings.TrimSuffix(strings.TrimSuffix(name, ".html.tmpl"), ".txt.tmpl")
@@ -1520,8 +1516,6 @@ func generatedSourceFile(checkName, path string) string {
 // the command that regenerates it.
 func generatedTarget(result checkResult) (file, fix string) {
 	switch result.name {
-	case "templ generate":
-		return "", "andurel build"
 	case "emails export":
 		return "emails", "andurel sync emails"
 	case "narsilc generate":

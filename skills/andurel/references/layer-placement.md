@@ -41,7 +41,7 @@ Two commands keep an agent honest:
 | Inertia page props and request body structs emitted to TypeScript | `payloads/` (package `payloads`; standard library, `time`, and `uuid` only) |
 | Route names, route paths, URL builders | `routes/` |
 | App HTTP middleware (auth, authorization) | `middleware/` |
-| Inertia root document | `resources/root.templ` (package `resources`) |
+| Inertia root document | `resources/root.html` + `resources/root.go` (package `resources`) |
 | Inertia pages and reusable frontend components | `resources/js/Pages/`, `resources/js/Layouts/`, `resources/js/Components/` |
 | Generated TS route/payload helpers | `resources/js/routes.ts`, `resources/js/types/payloads.ts` (written by `andurel sync routes` / `sync payloads`) |
 | Tailwind entry point | `css/base.css` (imports Tailwind and `css/theme.css`; `@source` globs live here) |
@@ -288,8 +288,9 @@ Session/bag values travel on `context.Context` through `pkg/kiks`
 
 ## Resources And Frontend
 
-`resources/root.templ` is the only templ in the app: the Inertia root document
-(package `resources`). Email is React Email TSX under `emails/`, not templ.
+`resources/root.html` is the Inertia root document (package `resources`),
+parsed with `html/template` by `resources/root.go`. Email is React Email TSX
+under `emails/`.
 Page data never travels through `RootData`; pass it as props. Shared props are
 the exception: `app/` configures `inertia.WithShared` with `appVersion` and
 `hosts`, and the scaffold's shared provider adds `auth.isAuthenticated`. Every

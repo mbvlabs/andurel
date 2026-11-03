@@ -29,11 +29,11 @@ func TestGenerationError(t *testing.T) {
 func TestSpecificFileOperationError(t *testing.T) {
 	cause := stderrors.New("permission denied")
 
-	err := NewSpecificFileOperationError("resources/root.templ", "read", cause)
+	err := NewSpecificFileOperationError("resources/root.html", "read", cause)
 	if !stderrors.Is(err, cause) {
 		t.Fatalf("NewSpecificFileOperationError should wrap cause")
 	}
-	if got, want := err.Error(), "failed to read file resources/root.templ: permission denied"; got != want {
+	if got, want := err.Error(), "failed to read file resources/root.html: permission denied"; got != want {
 		t.Fatalf("Error() = %q, want %q", got, want)
 	}
 }

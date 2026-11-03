@@ -501,13 +501,22 @@ to `INERTIA_SSR_URL`, served by `cmd/ssr` from `assets/dist/ssr/ssr.js`.
 `INERTIA_SSR_FAIL_FAST` (default true in production) turns an SSR failure into a
 500 instead of a client-rendered fallback.
 
-The root document is `resources/root.templ` (package `resources`). `RootData`
-exposes:
+The root document is `resources/root.html` (package `resources`), parsed by
+`resources/root.go` with standard-library `html/template` and passed to
+`inertia.WithRoot`. `RootData` exposes:
 
 - `Page` (`inertia.Page`) and `PageJSON` (the encoded page object)
 - `ContainerID`, `ProjectName`, `Environment`
 - `ViteHead` / `ViteBody` (rendered asset tags)
 - `SSR` (`*inertia.SSRResponse`, nil for a client-rendered response)
+- `PageScript`, `AppMount`, `SSRHead`, and `SSRBody` methods returning
+  pre-rendered `template.HTML` fragments
+
+Keep `{{.PageScript}}`, `{{.AppMount}}`, `{{.SSRHead}}`, `{{.SSRBody}}`,
+`{{.ViteHead}}`, and `{{.ViteBody}}` unescaped: they are already validated and
+escaped safe fragments. `html/template` handles `.ProjectName` escaping. The
+root renderer has no request context; pass request-dependent document data as
+page props, not through the root.
 
 Render the fallback `<title>` only when `data.SSR == nil`: SSR pages get their
 head from the page's Inertia `<Head>`, and a static title would otherwise be a

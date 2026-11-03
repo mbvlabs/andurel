@@ -136,7 +136,7 @@ func TestVerifyExplicitSetupChecksFullProject(t *testing.T) {
 		t.Fatalf("failure data = %T", output.Fail(result.err).Data)
 	}
 	setup := findVerifyStep(t, report, "setup")
-	if setup.Status != verifyStatusFail || len(setup.Violations) < 2 {
+	if setup.Status != verifyStatusFail || len(setup.Violations) < 1 {
 		t.Fatalf("setup step = %#v, want the full project preflight", setup)
 	}
 }

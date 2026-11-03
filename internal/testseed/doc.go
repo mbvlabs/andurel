@@ -13,8 +13,9 @@
 //     (scaffold .env.example secrets, CLI date banner).
 //   - layout.Scaffold: after writing templates + andurel.lock, skips
 //     go mod tidy and go fmt unless FullScaffold() is true (andurel_golden_full
-//     tag or ANDUREL_GOLDEN_FULL=1 in the CLI process). Compiled views
-//     (*_templ.go) and narsilc query packages are always written from embeds.
+//     tag or ANDUREL_GOLDEN_FULL=1 in the CLI process). The embedded
+//     resources/root.html and narsilc query packages are always written from
+//     embeds.
 //     Scaffold migrations are written with finished sequential versions
 //     (00001–00008), so goose fix is never run during `andurel new`.
 //     The golden harness strips ambient ANDUREL_GOLDEN_FULL so PR tests cannot

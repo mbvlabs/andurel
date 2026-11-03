@@ -14,7 +14,7 @@ the root module or workspace graph.
 - This directory is a standalone Go module outside the repository's module and
   workspace graph.
 - `go.mod` has **no `replace` directives**. It requires public
-  `anduin v0.8.0`, `inertia v0.14.1`, `kiks v0.6.1`, `routing v0.9.1` and
+  `anduin v0.8.0`, `inertia v0.15.0`, `kiks v0.6.1`, `routing v0.9.1` and
   `telemetry v0.2.3`; all resolution goes through
   `GOPROXY=https://proxy.golang.org` and `GOSUMDB=sum.golang.org`.
 - Run with `GOWORK=off` and no `GOPRIVATE`, `GONOSUMDB`, `GONOPROXY` or

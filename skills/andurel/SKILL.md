@@ -7,7 +7,7 @@ description: Use this skill for Andurel framework projects when deciding where c
 
 Use this skill when working in an Andurel project or adding Andurel code. It helps place code in the right layer and use the `andurel` CLI safely.
 
-Andurel is Go-native: `net/http` through `pkg/anduin`, explicit constructor injection (no DI container), and Inertia for the UI. There is no Echo, no Fx, and no templ page layer.
+Andurel is Go-native: `net/http` through `pkg/anduin`, explicit constructor injection (no DI container), and Inertia for the UI. There is no Echo, no Fx, and no server-side template page layer.
 
 ## Agent Invariants
 
@@ -20,7 +20,7 @@ Andurel is Go-native: `net/http` through `pkg/anduin`, explicit constructor inje
 - Use `--json` or `--jq` when extracting data.
 - `andurel generate` does not write application code. Read a pattern with `andurel patterns show <kind>` and write the files yourself. Only `andurel generate migration` creates a file.
 - Run `andurel verify` after a change: it checks formatting, `go fix`, `go vet`, the typed layer rules, the `package.json` typecheck script, and generated-code drift. The rules are listed under [Verify](#verify). Pass Go package patterns to scope the Go checks, and add `--with-tests` to also run the test suite.
-- Prefer the local project pattern over a generic Rails, Echo, Bun, Templ, or frontend convention.
+- Prefer the local project pattern over a generic Rails, Echo, Bun, server-side templating, or frontend convention.
 - Keep handlers as thin HTTP adapters: parse input, call a domain or service, map errors, render a response.
 - Create a service only when there is real cross-domain orchestration, not just because code exists.
 
@@ -72,7 +72,7 @@ Host fallback policies are checked at app startup, not by a static verify rule. 
 | `content-required` | every path listed in andurel.content.toml required exists |
 | `content-link` | local Markdown links and images resolve inside the project; configured anchors exist |
 | `content-checker` | each declared content checker exits 0 within its timeout from its declared working directory |
-| `generated` | generated templ, email, queries, routes, and payload output is up to date |
+| `generated` | generated email, queries, routes, and payload output is up to date |
 | `missing-tool` | a required generation binary is installed; run 'andurel tool sync' |
 <!-- andurel:verify-rules:end -->
 

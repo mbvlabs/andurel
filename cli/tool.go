@@ -20,7 +20,7 @@ the per-platform SHA-256 digests used to verify downloads. Use the
 subcommands below to sync, configure, or run tools.`,
 		Example: `  andurel tool sync
   andurel tool list --json
-  andurel tool set-version templ 0.3.977
+  andurel tool set-version goose 3.27.1
   andurel tool dblab
   andurel tool mailpit`,
 	}

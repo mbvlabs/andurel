@@ -73,7 +73,6 @@ and the cmd/emails development tool, and compile all assets for production
 deployment.
 
 This command:
-  • Generates Go from .templ files (Inertia root)
   • Generates narsilc code when domains/**/*.sql contains SQL files
   • Generates React Email props and exports emails/templates (when emails/ exists)
   • Builds Vite client assets and the SSR bundle (when Inertia is configured)
@@ -88,8 +87,8 @@ Use --only to build a subset, and --json for an artifact manifest.
 
 Use --output-dir to isolate every writable build intermediate. The project
 source tree, including assets/dist and generated Go files, is left untouched:
-andurel copies the project into a private staging directory, runs templ,
-narsilc, email sync and export, Vite and Go builds there, and publishes only
+andurel copies the project into a private staging directory, runs narsilc,
+email sync and export, Vite and Go builds there, and publishes only
 the finished binaries. Relative --output-dir paths resolve from the project root. The
 manifest reports absolute artifact paths and isolated=true. Two builds of the
 same project with different output directories do not share writable paths.
@@ -265,23 +264,7 @@ func runBuildSteps(
 	goos := runtime.GOOS
 	goarch := runtime.GOARCH
 
-	// 1. Templ generate
-	if tool, ok := lock.Tools["templ"]; ok {
-		if err := syncSingleToolFunc(rootDir, "templ", tool, goos, goarch); err != nil {
-			return buildReport{}, fmt.Errorf("failed to sync templ: %w", err)
-		}
-
-		fmt.Println("Generating templ files...")
-		templCmd := exec.Command(filepath.Join(binDir, "templ"), templGenerateArgs...)
-		templCmd.Dir = rootDir
-		templCmd.Stdout = os.Stdout
-		templCmd.Stderr = os.Stderr
-		if err := templCmd.Run(); err != nil {
-			return buildReport{}, fmt.Errorf("templ generation failed: %w", err)
-		}
-	}
-
-	// 1b. narsilc generate
+	// 1. narsilc generate
 	if hasQueries, err := cmds.HasQueryFiles(rootDir); err != nil {
 		return buildReport{}, fmt.Errorf("check narsilc queries: %w", err)
 	} else if hasQueries {

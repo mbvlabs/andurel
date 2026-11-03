@@ -154,7 +154,7 @@ var catalog = []Rule{
 	},
 	{
 		ID:      "generated",
-		Summary: "generated templ, email, queries, routes, and payload output is up to date",
+		Summary: "generated email, queries, routes, and payload output is up to date",
 		Fix:     "run the owning andurel sync command",
 		Layer:   "generated",
 	},

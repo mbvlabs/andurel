@@ -180,10 +180,12 @@ defineProps<ProductIndexProps>()
 - Import URLs from `resources/js/routes.ts` after `andurel sync routes`; use
   `routes.name.path(...)` in `href` and `routes.name(...)` for an absolute URL.
   Build them at render time, after `configureRouteHosts` has run.
-- `resources/root.templ` is the framework-owned document. It receives
-  `inertia.RootData` fields (`Page`, `PageJSON`, `ContainerID`,
-  `ProjectName`, `Environment`, `ViteHead`, `ViteBody`, `SSR`) and must not be
-  used to smuggle page data: page props belong to the page.
+- `resources/root.html` is the framework-owned document, parsed with
+  `html/template` by `resources/root.go`. It receives `inertia.RootData` fields
+  (`Page`, `PageJSON`, `ContainerID`, `ProjectName`, `Environment`, `ViteHead`,
+  `ViteBody`, `SSR`) plus the safe pre-rendered `PageScript`, `AppMount`,
+  `SSRHead`, and `SSRBody` fragments. Do not use it to smuggle page data: page
+  props belong to the page.
 - Server-side rendering is opt-in per render with `.SSR()` on the Go
   `PageBuilder` (for example
   `renderer.Page(...).SSR().Render()`); the component needs no change. Error

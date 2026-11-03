@@ -54,7 +54,6 @@ func TestBuildOutputDirIsolatesSourceAndEmbedsAssets(t *testing.T) {
 
 	assertFileMissing(t, filepath.Join(root, "assets", "dist", "marker.txt"))
 	assertFileMissing(t, filepath.Join(root, "dist"))
-	assertFileMissing(t, filepath.Join(root, "cmd", "app", "app_templ.go"))
 	assertFileContains(t, filepath.Join(root, "assets", "dist", "seed.txt"), "seed")
 
 	marker := runBuiltBinary(t, filepath.Join(absoluteOutput, "app"), t.TempDir())
@@ -132,16 +131,16 @@ func TestFakeBuildToolchainUsesPreparedExecutable(t *testing.T) {
 		if err := os.MkdirAll(filepath.Join(root, "bin"), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := syncSingleToolFunc(root, "templ", nil, "linux", runtime.GOARCH); err != nil {
+		if err := syncSingleToolFunc(root, "fake-tool", nil, "linux", runtime.GOARCH); err != nil {
 			t.Fatal(err)
 		}
-		path := filepath.Join(root, "bin", "templ")
+		path := filepath.Join(root, "bin", "fake-tool")
 		target, err := os.Readlink(path)
 		if err != nil {
-			t.Fatalf("fake templ is not a link to a prepared executable: %v", err)
+			t.Fatalf("fake tool is not a link to a prepared executable: %v", err)
 		}
 		if err := exec.Command(path).Run(); err != nil {
-			t.Fatalf("run fake templ: %v", err)
+			t.Fatalf("run fake tool: %v", err)
 		}
 		targets = append(targets, target)
 	}
@@ -389,7 +388,6 @@ func main() {
 	}
 
 	lock := layout.NewAndurelLock("test")
-	lock.Tools["templ"] = validTestTool("templ", "v0.3.0")
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{ProjectName: "app"}
 	if inertia {
 		lock.ScaffoldConfig.Inertia = "react"
@@ -407,7 +405,7 @@ func installFakeBuildToolchain(t *testing.T, logPath string) {
 	// Prepare executables before any builds start. A concurrent fork can inherit
 	// a writable descriptor until exec closes it, even after WriteFile returns;
 	// executing that inode in another build can then fail with ETXTBSY.
-	for _, name := range []string{"templ", "narsilc", "tailwindcli"} {
+	for _, name := range []string{"fake-tool", "narsilc"} {
 		writeExecutable(t, fakePath, name, fakeCommandScript(logPath, name))
 	}
 	syncSingleToolFunc = func(projectRoot, name string, tool *layout.Tool, goos, goarch string) error {

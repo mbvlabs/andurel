@@ -15,7 +15,7 @@ func TestDiagnosticCopyDereferencesExternalRelativeSymlinks(t *testing.T) {
 	if err := os.MkdirAll(project, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	writeTestFile(t, shared, "resources/root.templ", "package resources\n")
+	writeTestFile(t, shared, "resources/root.html", "package resources\n")
 	writeTestFile(t, shared, "settings.txt", "external settings\n")
 	if err := os.Symlink(
 		filepath.Join("..", "shared", "resources"),
@@ -46,7 +46,7 @@ func TestDiagnosticCopyDereferencesExternalRelativeSymlinks(t *testing.T) {
 		if !settingsInfo.Mode().IsRegular() {
 			t.Fatalf("copied settings mode = %s, want regular file", settingsInfo.Mode())
 		}
-		content, err := os.ReadFile(filepath.Join(copyRoot, "resources", "root.templ"))
+		content, err := os.ReadFile(filepath.Join(copyRoot, "resources", "root.html"))
 		if err != nil {
 			return err
 		}
@@ -54,7 +54,7 @@ func TestDiagnosticCopyDereferencesExternalRelativeSymlinks(t *testing.T) {
 			t.Fatalf("copied template = %q", content)
 		}
 		return os.WriteFile(
-			filepath.Join(copyRoot, "resources", "root.templ"),
+			filepath.Join(copyRoot, "resources", "root.html"),
 			[]byte("changed copy\n"),
 			0o644,
 		)
@@ -148,43 +148,6 @@ func TestDiagnosticCopyPreservesDereferencedPermissions(t *testing.T) {
 		return nil
 	}); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func TestTemplFormatCheckInspectsExternalSymlinkContentWithoutMutatingIt(t *testing.T) {
-	parent := t.TempDir()
-	project := filepath.Join(parent, "project")
-	shared := filepath.Join(parent, "shared")
-	if err := os.MkdirAll(project, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	writeTestFile(t, shared, "page.templ", "package resources\n")
-	writeExecutable(
-		t,
-		project,
-		"bin/templ",
-		"#!/bin/sh\nprintf '// formatted copy\\n' >> \"$2/page.templ\"\n",
-	)
-	if err := os.Symlink(
-		filepath.Join("..", "shared"),
-		filepath.Join(project, "resources"),
-	); err != nil {
-		t.Fatal(err)
-	}
-	before, err := os.ReadFile(filepath.Join(shared, "page.templ"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = runTemplFmt(project, true)
-	if err == nil || !strings.Contains(err.Error(), "resources/page.templ") {
-		t.Fatalf("templ format check = %v", err)
-	}
-	after, err := os.ReadFile(filepath.Join(shared, "page.templ"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(before, after) {
-		t.Fatalf("templ format check changed external target\nbefore=%q\nafter=%q", before, after)
 	}
 }
 

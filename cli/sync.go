@@ -27,7 +27,7 @@ func newSyncCommand() *cobra.Command {
 digests from andurel.lock. Already-downloaded tools at the correct version are
 skipped.
 
-Managed tools include narsilc, templ, goose, mailpit, usql, dblab and
+Managed tools include narsilc, goose, mailpit, usql, dblab and
 tailwindcli. Versions are pinned in andurel.toml; andurel.lock holds the
 per-platform SHA-256 digests.`,
 		Example: `  andurel tool sync`,

@@ -20,7 +20,7 @@ const (
 // defaultFlashCookieName names the flash cookie of a jar that has no session.
 const defaultFlashCookieName = "kiks_flash"
 
-// FlashMessage is the shared flash contract for Templ and Inertia.
+// FlashMessage is the shared flash contract for Inertia pages.
 type FlashMessage struct {
 	ID        string    `json:"id"`
 	Type      FlashType `json:"type"`

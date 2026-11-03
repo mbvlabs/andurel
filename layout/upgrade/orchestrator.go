@@ -583,7 +583,10 @@ func isFrameworkManagedTool(name string, tool *layout.Tool) bool {
 		}
 	}
 
-	if name == "tailwindcli" {
+	if name == "tailwindcli" || name == "templ" {
+		// tailwindcli is framework-managed but not a Go tool. templ was
+		// framework-managed before the Inertia root moved to html/template;
+		// beta locks still contain it and upgrade removes it.
 		return true
 	}
 

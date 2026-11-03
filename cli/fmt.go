@@ -3,7 +3,6 @@ package cli
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,23 +14,20 @@ import (
 func newFmtCommand() *cobra.Command {
 	var (
 		checkMode bool
-		skipTempl bool
 		skipGo    bool
 	)
 
 	cmd := &cobra.Command{
 		Use:     "fmt",
 		Aliases: []string{"f"},
-		Short:   "Format Go and Templ source files",
-		Long: `Formats all source files in the project.
+		Short:   "Format Go source files",
+		Long: `Formats all Go source files in the project.
 
-Runs gofmt (via go fmt), golines, and templ fmt to ensure consistent
-code style across Go and Templ files.
+Runs gofmt (via go fmt) and golines to ensure consistent code style.
 
 Use --check to verify formatting without modifying files.`,
 		Example: `  andurel fmt
   andurel fmt --check
-  andurel fmt --skip-templ
   andurel fmt --skip-go`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -42,18 +38,17 @@ Use --check to verify formatting without modifying files.`,
 			if err != nil {
 				return fmt.Errorf("not in an andurel project directory: %w", err)
 			}
-			return runFmtFunc(rootDir, checkMode, skipTempl, skipGo)
+			return runFmtFunc(rootDir, checkMode, skipGo)
 		},
 	}
 
 	cmd.Flags().BoolVar(&checkMode, "check", false, "Check formatting without modifying files")
-	cmd.Flags().BoolVar(&skipTempl, "skip-templ", false, "Skip templ fmt")
 	cmd.Flags().BoolVar(&skipGo, "skip-go", false, "Skip go fmt and golines")
 
 	return cmd
 }
 
-func runFmt(rootDir string, checkMode, skipTempl, skipGo bool) error {
+func runFmt(rootDir string, checkMode, skipGo bool) error {
 	hasIssues := false
 
 	if !skipGo {
@@ -65,13 +60,6 @@ func runFmt(rootDir string, checkMode, skipTempl, skipGo bool) error {
 		if err := runGolinesFunc(rootDir, checkMode); err != nil {
 			hasIssues = true
 			_, _ = fmt.Fprintf(os.Stderr, "golines: %v\n", err)
-		}
-	}
-
-	if !skipTempl {
-		if err := runTemplFmtFunc(rootDir, checkMode); err != nil {
-			hasIssues = true
-			_, _ = fmt.Fprintf(os.Stderr, "templ fmt: %v\n", err)
 		}
 	}
 
@@ -182,70 +170,4 @@ func collectGoFiles(rootDir string) ([]string, error) {
 func skipGoPackageDir(name string) bool {
 	return name == "vendor" || name == "testdata" || strings.HasPrefix(name, ".") ||
 		strings.HasPrefix(name, "_")
-}
-
-func runTemplFmt(rootDir string, checkMode bool) error {
-	templBin := filepath.Join(rootDir, "bin", "templ")
-	if _, err := os.Stat(templBin); err != nil {
-		if os.IsNotExist(err) {
-			fmt.Println(
-				"templ binary not found at bin/templ, skipping templ fmt\nRun 'andurel tool sync' to download it",
-			)
-			return nil
-		}
-		return err
-	}
-
-	if checkMode {
-		return checkTemplFormatting(rootDir)
-	}
-	return runTemplFormatter(rootDir)
-}
-
-func checkTemplFormatting(rootDir string) error {
-	var changed []string
-	err := withDiagnosticProjectCopy(rootDir, func(tempRoot string) error {
-		before, err := snapshotFilesForReport(tempRoot)
-		if err != nil {
-			return err
-		}
-		if err := runTemplFormatter(tempRoot); err != nil {
-			return err
-		}
-		after, err := snapshotFilesForReport(tempRoot)
-		if err != nil {
-			return err
-		}
-		changed = changedSnapshotPaths(before, after)
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	if len(changed) > 0 {
-		return fmt.Errorf("templ fmt would change: %s", strings.Join(changed, ", "))
-	}
-	return nil
-}
-
-func runTemplFormatter(rootDir string) error {
-	templBin := filepath.Join(rootDir, "bin", "templ")
-	dirs := []string{"resources"}
-	for _, dir := range dirs {
-		dirPath := filepath.Join(rootDir, dir)
-		if _, err := os.Stat(dirPath); os.IsNotExist(err) {
-			continue
-		}
-
-		args := []string{"fmt", dir}
-		cmd := exec.Command(templBin, args...)
-		cmd.Dir = rootDir
-		cmd.Stdout = io.Discard
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("templ fmt failed in %s: %w", dir, err)
-		}
-	}
-
-	return nil
 }

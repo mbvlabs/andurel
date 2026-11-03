@@ -90,6 +90,32 @@ require (
 	}
 }
 
+func TestAddVerifiedPackageDependenciesDropsRemovedTemplTool(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	mustWriteTestFile(t, root, "go.mod", []byte(
+		"module testapp\n\ngo 1.27.1\n\nrequire github.com/mbvlabs/andurel/pkg/telemetry "+
+			versions.Telemetry+"\n\ntool (\n\tgithub.com/a-h/templ/cmd/templ\n\tgithub.com/segmentio/golines\n)\n",
+	))
+
+	plan := &upgradePlan{}
+	upgrader := &Upgrader{projectRoot: root}
+	if err := upgrader.addVerifiedPackageDependencies(plan, &layout.ScaffoldConfig{}); err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.files) != 1 || plan.files[0].path != "go.mod" {
+		t.Fatalf("planned files = %#v", plan.files)
+	}
+	goMod := string(plan.files[0].after)
+	if strings.Contains(goMod, "a-h/templ") {
+		t.Fatalf("templ tool directive was not removed:\n%s", goMod)
+	}
+	if !strings.Contains(goMod, "tool (") {
+		t.Fatalf("unrelated tool directives must survive:\n%s", goMod)
+	}
+}
+
 func TestAddVerifiedPackageDependenciesSkipsNonInertiaProjects(t *testing.T) {
 	t.Parallel()
 

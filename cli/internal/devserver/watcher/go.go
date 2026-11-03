@@ -16,9 +16,9 @@ var excludeDirs = map[string]bool{
 	".git": true, "assets": true, "vendor": true,
 }
 
-// RunGoWatcher watches .go files under dir (skipping generated _templ.go files,
-// tool directories, and paths for which skipRebuild returns true) and signals
-// rebuildChan after a short debounce.
+// RunGoWatcher watches Go files and the embedded Inertia root document
+// (resources/*.html) under dir, skipping tool directories and paths for which
+// skipRebuild returns true, and signals rebuildChan after a short debounce.
 func RunGoWatcher(
 	ctx context.Context,
 	dir string,
@@ -68,7 +68,7 @@ func RunGoWatcher(
 				}
 			}
 
-			if !isGoFile(event.Name) || isTemplGenerated(event.Name) {
+			if !isRebuildSource(dir, event.Name) {
 				continue
 			}
 			if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Remove|fsnotify.Rename|fsnotify.Chmod) == 0 {
@@ -83,7 +83,7 @@ func RunGoWatcher(
 				debounceTimer.Stop()
 			}
 			debounceTimer = time.AfterFunc(debounceDelay, func() {
-				logf(log, "[run] Go file changed: %s\n", filepath.Base(event.Name))
+				logf(log, "[run] Source file changed: %s\n", filepath.Base(event.Name))
 				select {
 				case rebuildChan <- struct{}{}:
 				default:
@@ -126,10 +126,17 @@ func shouldSkipDir(name string) bool {
 	return excludeDirs[name] || strings.HasPrefix(name, ".")
 }
 
-func isGoFile(path string) bool {
-	return strings.HasSuffix(path, ".go")
-}
-
-func isTemplGenerated(path string) bool {
-	return strings.HasSuffix(path, "_templ.go")
+// isRebuildSource reports whether path must trigger a rebuild. The generated
+// project embeds the Inertia root from resources/root.html, so its HTML is a
+// build input just like Go source.
+func isRebuildSource(dir, path string) bool {
+	if strings.HasSuffix(path, ".go") {
+		return true
+	}
+	rel, err := filepath.Rel(dir, path)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return false
+	}
+	rel = filepath.ToSlash(rel)
+	return strings.HasPrefix(rel, "resources/") && strings.HasSuffix(rel, ".html")
 }

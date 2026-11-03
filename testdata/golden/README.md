@@ -20,7 +20,7 @@ still runs a slim capture for `andurel new` (Inertia react and vue).
 
 1. `TestMain` (`golden/main_test.go`) locates the repo root, builds the
    `andurel` binary with `-tags andurel_golden -ldflags -X main.version=latest`,
-   `go install`s templ/golines/goimports at the versions from `layout/versions`,
+   `go install`s golines/goimports at the versions from `layout/versions`,
    and downloads narsilc, tailwindcli, and goose from the same lock URL
    templates and SHA-256 digests as `andurel.lock`.
 2. Each generate/sync test clones a fixture from `testdata/fixtures/`, seeds
@@ -66,9 +66,9 @@ fixtures, not the test harness:
   Without the tag, `internal/testseed/seed_default.go` is compiled instead.
 - Under the tag, `layout.Scaffold` skips `go mod tidy` and `go fmt`
   **unless** `testseed.FullScaffold()` is true (`andurel_golden_full` tag or
-  `ANDUREL_GOLDEN_FULL=1`). Compiled templ (`*_templ.go`) and narsilc query
-  packages are written from embeds during template rendering (no `templ` /
-  `narsilc` invocation on `andurel new`). PR goldens stay offline; nightly
+  `ANDUREL_GOLDEN_FULL=1`). The narsilc query packages are written from embeds
+  during template rendering (no `narsilc` invocation on `andurel new`). PR
+  goldens stay offline; nightly
   full-tree `new` still runs tidy/fmt with pinned tools on
   `ANDUREL_TOOL_BIN`.
 - The golden CLI is built with `-ldflags -X main.version=latest`, so
@@ -102,7 +102,7 @@ Fixtures for generate/sync scenarios are under `testdata/fixtures/generate_base`
 name (`app`), not `example.com/app`.
 
 PR CI captures the slim scaffold under `new/slim/` without running tidy/fmt.
-Compiled `*_templ.go` and narsilc query packages are included from embeds.
+The embedded `resources/root.html` and narsilc query packages are included from embeds.
 Nightly full-tree capture lives under `new/<scenario>/` for every adapter with
 tidy/fmt on. Those directories must stay separate: formatted nightly trees must
 not be the PR baseline.
@@ -114,9 +114,9 @@ file except the denylist, then fail (or, with `-update`, delete) orphan
 `.golden` files that have no project counterpart.
 
 `ANDUREL_GOLDEN_FULL=1` makes `layout.Scaffold` run `go fmt` and
-`go mod tidy` with pinned tools from `ANDUREL_TOOL_BIN`. Compiled templ and
-narsilc query packages are always written from embeds (no scaffold-time
-`templ` / `narsilc` generate). Migration files are written with finished
+`go mod tidy` with pinned tools from `ANDUREL_TOOL_BIN`. The embedded
+`resources/root.html` and narsilc query packages are always written from embeds
+(no scaffold-time `narsilc` generate). Migration files are written with finished
 sequential versions, so goose fix is not part of scaffold.
 
 **Denylist** (no content scrubbers):
@@ -129,7 +129,7 @@ sequential versions, so goose fix is not part of scaffold.
 | `.env` / `.env.example` | Secrets (even when seeded) |
 | `node_modules/` | JS package install artifacts if present |
 
-**Captured** (generators have run): `domains/internal/queries/`, `*_templ.go`,
+**Captured** (generators have run): `domains/internal/queries/`, `resources/root.html`,
 `go.mod`, and the rest of the tree.
 
 Secrets in `.env.example` still come from `internal/testseed` (fixed RNG +

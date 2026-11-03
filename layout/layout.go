@@ -113,7 +113,7 @@ func Scaffold(
 	// Golden CLI builds already seed secrets via testseed. Migration files are
 	// written with finished sequential versions (00001–00008), so scaffold
 	// never runs goose fix. PR goldens skip network-bound post-scaffold steps
-	// so `andurel new` stays offline. Compiled views (*_templ.go) and narsilc
+	// so `andurel new` stays offline. The embedded Inertia root and narsilc
 	// query packages are written from embeds above; nightly full-tree goldens
 	// call RunCLIFull so go fmt and tidy still run.
 	// See internal/testseed and testdata/golden/README.md.
@@ -272,10 +272,10 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 // andurel new emits them with the sync generators so a fresh project never
 // drifts from andurel verify.
 var inertiaSharedTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"config_inertia.tmpl":         "config/inertia.go",
-	"cmd_ssr_main.tmpl":           "cmd/ssr/main.go",
-	"inertia_framework_root.tmpl": "resources/root.templ",
-	"views_root_templ_go.tmpl":    "resources/root_templ.go",
+	"config_inertia.tmpl":      "config/inertia.go",
+	"cmd_ssr_main.tmpl":        "cmd/ssr/main.go",
+	"resources_root_html.tmpl": "resources/root.html",
+	"resources_root_go.tmpl":   "resources/root.go",
 }
 
 var inertiaVueTemplateMappings = map[TmplTarget]TmplTargetPath{
@@ -379,11 +379,16 @@ func isStaticInertiaAssetTemplate(templateFile TmplTarget) bool {
 // props are themselves Go text/template sources whose {{.Field}} placeholders
 // must survive scaffolding. emails/*.go holds both the Go package and the
 // committed React Email output, so the whole directory is copied verbatim.
+// resources/root.html is an html/template document, so its own {{...}} actions
+// must reach the generated project untouched.
 func isStaticScaffoldTemplate(
 	templateFile TmplTarget,
 	targetPath TmplTargetPath,
 ) bool {
 	if isStaticInertiaAssetTemplate(templateFile) {
+		return true
+	}
+	if string(targetPath) == "resources/root.html" {
 		return true
 	}
 	return strings.HasPrefix(string(targetPath), "emails/")
@@ -740,7 +745,6 @@ type GoTool struct {
 
 // DefaultGoTools provides default go tools.
 var DefaultGoTools = []GoTool{
-	{Name: "templ", Source: "github.com/a-h/templ/cmd/templ", Version: versions.Templ},
 	{Name: "goose", Source: "github.com/pressly/goose/v3/cmd/goose", Version: versions.Goose},
 	{Name: "mailpit", Source: "github.com/axllent/mailpit", Version: versions.Mailpit},
 	{Name: "usql", Source: "github.com/xo/usql", Version: versions.Usql},
@@ -748,7 +752,6 @@ var DefaultGoTools = []GoTool{
 }
 
 var defaultTools = []string{
-	"github.com/a-h/templ/cmd/templ",
 	"github.com/pressly/goose/v3/cmd/goose",
 	"github.com/axllent/mailpit",
 	"github.com/xo/usql",

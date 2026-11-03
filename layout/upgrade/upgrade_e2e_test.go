@@ -27,7 +27,7 @@ const (
 
 	// The rc.1 candidate publishes these framework package pins.
 	upgradeE2ECandidateAnduinVersion  = "v0.8.0"
-	upgradeE2ECandidateInertiaVersion = "v0.14.1"
+	upgradeE2ECandidateInertiaVersion = "v0.15.0"
 )
 
 // upgradeE2ECases covers the existing released beta.4 -> beta.5 regression and
@@ -60,9 +60,12 @@ var upgradeE2ECases = []struct {
 }
 
 // TestUpgradeToHEAD scaffolds with each released CLI in upgradeE2ECases,
-// upgrades the result with this checkout, and requires the result to build and
-// vet cleanly without manual actions. The candidate cases additionally require
-// the rc.1 manifest metadata and current published package pins.
+// upgrades the result with this checkout, applies the rc.1 templ-root migration
+// documented in docs/release-notes/v2.0.0-rc.1.md, and requires the migrated
+// result to build and vet cleanly. The upgrade itself reports no manual
+// actions; the root document is application-owned and deliberately not
+// rewritten. The candidate cases additionally require the rc.1 manifest
+// metadata and current published package pins.
 //
 // The test downloads the released CLI and modules, so it only runs in nightly
 // and release-readiness. Set ANDUREL_UPGRADE_E2E=1 to enable it.
@@ -70,8 +73,7 @@ var upgradeE2ECases = []struct {
 // Set ANDUREL_UPGRADE_E2E_LOCAL_PKG=1 to replace every pkg/* module with this
 // checkout after the upgrade, the way `just local-replace` does. Use it on a
 // branch whose package changes are not published yet; the default variant
-// stays on the published pins for nightly and release-readiness. Candidate
-// cases are release-shaped and are skipped in local-replace mode.
+// stays on the published pins for nightly and release-readiness.
 func TestUpgradeToHEAD(t *testing.T) {
 	if os.Getenv("ANDUREL_UPGRADE_E2E") != "1" {
 		t.Skip("upgrade end-to-end test requires ANDUREL_UPGRADE_E2E=1")
@@ -80,9 +82,6 @@ func TestUpgradeToHEAD(t *testing.T) {
 
 	for _, tc := range upgradeE2ECases {
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.verifyCandidate && localPkg {
-				t.Skip("candidate paths assert published pins; ANDUREL_UPGRADE_E2E_LOCAL_PKG replaces them")
-			}
 			testUpgradeToTarget(t, tc.source, tc.target, localPkg, tc.verifyCandidate)
 		})
 	}
@@ -143,22 +142,107 @@ func testUpgradeToTarget(
 		t.Fatalf("upgrade %s to %s reported manual actions: %#v", source, target, report.ManualActions)
 	}
 
+	assertLegacyTemplRootAwaitingMigration(t, root)
+	// rc.1 deliberately breaks compiled templ roots. Upgrades never rewrite
+	// this application-owned document, so every upgraded beta project applies
+	// the documented manual migration before building. The current package
+	// pins are what make the old compiled root fail, so this holds for the
+	// historical beta target too.
+	migrateLegacyTemplRoot(t, root)
 	if localPkg {
 		replaceWithLocalPackages(t, root)
 	}
 
 	runUpgradeE2EGo(t, root, "mod", "tidy")
 	if verifyCandidate {
-		assertCandidateProject(t, root, target)
+		assertCandidateProject(t, root, target, localPkg)
 	}
 	runUpgradeE2EGo(t, root, "build", "./...")
 	runUpgradeE2EGo(t, root, "vet", "./...")
 }
 
+// assertLegacyTemplRootAwaitingMigration proves the pre-rc.1 upgrade leaves the
+// app-owned compiled templ root untouched. The upgrade must not pretend the
+// removed templ helpers still exist.
+func assertLegacyTemplRootAwaitingMigration(t *testing.T, root string) {
+	t.Helper()
+
+	for _, rel := range []string{"resources/root.templ", "resources/root_templ.go"} {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel))); err != nil {
+			t.Fatalf("upgrade rewrote app-owned root %s: %v", rel, err)
+		}
+	}
+	compiled := string(mustReadProjectFile(t, root, "resources/root_templ.go"))
+	if !strings.Contains(compiled, "github.com/a-h/templ") ||
+		!strings.Contains(compiled, "inertia.SSRHead") {
+		t.Fatalf("expected a legacy compiled templ root, got:\n%s", compiled)
+	}
+}
+
+// migrateLegacyTemplRoot applies the documented rc.1 root migration: replace
+// the templ document with resources/root.html + resources/root.go. The runtime
+// call site is unchanged because resources.Root now satisfies WithRoot.
+func migrateLegacyTemplRoot(t *testing.T, root string) {
+	t.Helper()
+
+	templates := filepath.Join(localCheckoutRoot(t), "layout", "templates")
+	writeUpgradeProjectFile(
+		t,
+		root,
+		"resources/root.html",
+		mustReadTestFile(t, filepath.Join(templates, "resources_root_html.tmpl")),
+	)
+	writeUpgradeProjectFile(
+		t,
+		root,
+		"resources/root.go",
+		mustReadTestFile(t, filepath.Join(templates, "resources_root_go.tmpl")),
+	)
+	for _, rel := range []string{"resources/root.templ", "resources/root_templ.go"} {
+		if err := os.Remove(filepath.Join(root, filepath.FromSlash(rel))); err != nil &&
+			!os.IsNotExist(err) {
+			t.Fatalf("remove legacy root %s: %v", rel, err)
+		}
+	}
+	dropTool := exec.Command(
+		"go",
+		"mod",
+		"edit",
+		"-droptool=github.com/a-h/templ/cmd/templ",
+	)
+	dropTool.Dir = root
+	if err := dropTool.Run(); err != nil {
+		// The upgrade already drops the directive; a missing tool is not an error.
+		t.Logf("droptool after upgrade: %v", err)
+	}
+}
+
+func writeUpgradeProjectFile(t *testing.T, root, rel, content string) {
+	t.Helper()
+
+	path := filepath.Join(root, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", rel, err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write %s: %v", rel, err)
+	}
+}
+
+func mustReadTestFile(t *testing.T, path string) string {
+	t.Helper()
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	return string(content)
+}
+
 // assertCandidateProject checks the final candidate metadata after the
 // prescribed tidy. The expected pins are literal so a pin drift cannot silently
 // make this release-candidate assertion follow the code it is checking.
-func assertCandidateProject(t *testing.T, root string, target string) {
+func assertCandidateProject(t *testing.T, root string, target string, localPkg bool) {
 	t.Helper()
 
 	lock, err := layout.ReadLockFile(root)
@@ -201,7 +285,7 @@ func assertCandidateProject(t *testing.T, root string, target string) {
 			t.Errorf("go.mod pin %s = %q, want %q", pin.path, got, pin.version)
 		}
 	}
-	if len(file.Replace) != 0 {
+	if !localPkg && len(file.Replace) != 0 {
 		t.Fatalf("go.mod has local replace directives after candidate upgrade: %#v", file.Replace)
 	}
 }

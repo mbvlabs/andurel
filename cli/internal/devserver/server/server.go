@@ -25,7 +25,6 @@ type AppServer struct {
 	dir                    string
 	binPath                string
 	binDir                 string
-	templDir               string
 	appPort                string
 	broadcaster            *reload.Broadcaster
 	addProcess             func(*exec.Cmd)
@@ -73,11 +72,9 @@ func (s *AppServer) makeBinaryPath() string {
 
 func NewAppServer(cfg Config) *AppServer {
 	binDir := filepath.Join(cfg.Dir, "tmp", "bin")
-	templDir := filepath.Join(cfg.Dir, "tmp", "templ")
 	s := &AppServer{
 		dir:                   cfg.Dir,
 		binDir:                binDir,
-		templDir:              templDir,
 		appPort:               cfg.AppPort,
 		broadcaster:           cfg.Broadcaster,
 		addProcess:            cfg.AddProcess,
@@ -97,10 +94,8 @@ func NewAppServer(cfg Config) *AppServer {
 }
 
 func (s *AppServer) Run(ctx context.Context, rebuildChan <-chan struct{}) error {
-	for _, dir := range []string{s.binDir, s.templDir} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return fmt.Errorf("create directory %s: %w", dir, err)
-		}
+	if err := os.MkdirAll(s.binDir, 0o755); err != nil {
+		return fmt.Errorf("create directory %s: %w", s.binDir, err)
 	}
 	runtimeRestartChan := make(chan struct{}, 1)
 	s.runtimeRestartChan = runtimeRestartChan
@@ -199,7 +194,6 @@ func (s *AppServer) rebuild(buildCtx context.Context, appCtx context.Context) er
 	s.logf("[run] Starting server...\n")
 	cmd := exec.CommandContext(appCtx, candidateBinPath)
 	cmd.Dir = s.dir
-	cmd.Env = append(os.Environ(), "TEMPL_DEV_MODE=true", "TMPDIR="+s.templDir)
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {

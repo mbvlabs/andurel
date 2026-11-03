@@ -205,6 +205,22 @@ func (u *Upgrader) addVerifiedPackageDependencies(
 		currentByPath[requirement.Mod.Path] = requirement.Mod.Version
 	}
 
+	// templ stopped being a framework tool when the Inertia root moved to
+	// html/template. Drop its tool directive from beta projects; an unknown
+	// legacy tool must never fail the upgrade.
+	removedTools := make([]string, 0, 1)
+	for _, tool := range file.Tool {
+		if tool != nil && tool.Path == "github.com/a-h/templ/cmd/templ" {
+			removedTools = append(removedTools, tool.Path)
+		}
+	}
+	for _, path := range removedTools {
+		if err := file.DropTool(path); err != nil {
+			return fmt.Errorf("drop templ tool directive: %w", err)
+		}
+	}
+	removedTool := len(removedTools) > 0
+
 	pins := make(map[string]string)
 	if config != nil && layout.IsSupportedInertiaAdapter(config.Inertia) {
 		inertiaPath := versions.PkgPrefix + "inertia"
@@ -231,7 +247,7 @@ func (u *Upgrader) addVerifiedPackageDependencies(
 		shouldUpgradePackage(current, versions.NarsilcModule) {
 		pins[versions.NarsilcModulePath] = versions.NarsilcModule
 	}
-	if len(pins) == 0 {
+	if len(pins) == 0 && !removedTool {
 		return nil
 	}
 
