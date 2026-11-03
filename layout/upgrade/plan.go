@@ -102,7 +102,14 @@ func (u *Upgrader) buildPlan(dirty bool) (*upgradePlan, error) {
 		dirty:       dirty,
 	}
 	includeInertiaMigration := layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia)
-	plan.manualActions, err = manualActionsForUpgrade(
+	// The upgrade pins every pkg/* module to the versions compiled into this
+	// CLI, including pkg/inertia v0.15.0 and pkg/storage v0.16.0. A project
+	// that still has the old templ root or pkg/email cannot build after those
+	// pins even when the target is an earlier pre-release, so report the same
+	// migration notices whenever the legacy structure is actually present.
+	// Filter the combined list: a migrated project crossing rc.1 gets neither.
+	plan.manualActions, err = ManualActionsForProject(
+		u.projectRoot,
 		plan.fromVersion,
 		plan.toVersion,
 		includeInertiaMigration,
@@ -110,18 +117,6 @@ func (u *Upgrader) buildPlan(dirty bool) (*upgradePlan, error) {
 	if err != nil {
 		return nil, err
 	}
-	// The upgrade pins every pkg/* module to the versions compiled into this
-	// CLI, including pkg/inertia v0.15.0 and pkg/storage v0.16.0. A project
-	// that still has the old templ root or pkg/email cannot build after those
-	// pins even when the target is an earlier pre-release, so report the same
-	// migration notices whenever the legacy structure is actually present.
-	plan.manualActions = mergeManualActions(
-		plan.manualActions,
-		filterManualActionsForProject(
-			u.projectRoot,
-			legacyBreakingManualActions(includeInertiaMigration),
-		),
-	)
 
 	toolChanges, err := syncTools(lock)
 	if err != nil {

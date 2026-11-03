@@ -15,13 +15,13 @@ func newUpgradeNotesCommand() *cobra.Command {
 		Use:   "upgrade-notes",
 		Short: "Show the manual actions of a past upgrade",
 		Long: `Show the manual actions an upgrade from --from to the project's current
-version prints. After an upgrade andurel.toml records the new version, so
-andurel upgrade no longer lists them; this command shows them again.
+version still needs. After an upgrade andurel.toml records the new version, so
+andurel upgrade no longer lists them; this command shows the ones that still
+apply to the project.
 
-The actions cover application-owned code that Andurel does not rewrite. Each
-one says how to tell whether a fix you wrote yourself is equivalent. andurel
-doctor statically reports whether each action's change is present as applied,
-not applied, or not applicable, keyed by the same stable action ID.`,
+Actions already applied in the project are omitted, matching the upgrade report.
+andurel doctor reports each action's applied, not applied, or not applicable
+state under the same stable action ID.`,
 		Example: `  andurel inspect upgrade-notes --from v2.0.0-beta.2
   andurel inspect upgrade-notes --from v2.0.0-beta.2 --json`,
 		Args: cobra.NoArgs,
@@ -33,7 +33,7 @@ not applied, or not applicable, keyed by the same stable action ID.`,
 	setAgentMetadata(
 		cmd,
 		"maintenance",
-		"Read-only list of the manual actions between --from and the version in andurel.toml. andurel doctor reports the applied/not_applied/not_applicable state of each action by the same stable ID.",
+		"Read-only list of the manual actions between --from and the version in andurel.toml that still apply to the project. Actions already applied are omitted. andurel doctor reports the applied/not_applied/not_applicable state of each action by the same stable ID.",
 	)
 	return cmd
 }
@@ -75,7 +75,7 @@ func runUpgradeNotes(cmd *cobra.Command) error {
 
 	inertia := lock.ScaffoldConfig != nil &&
 		layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia)
-	actions, err := upgrade.ManualActionsBetween(from, lock.Version, inertia)
+	actions, err := upgrade.ManualActionsForProject(projectRoot, from, lock.Version, inertia)
 	if err != nil {
 		return output.WrapError(
 			output.CodeUsage,

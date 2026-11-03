@@ -93,6 +93,29 @@ func manualActionsForUpgrade(
 	return []ManualAction{}, nil
 }
 
+// ManualActionsForProject returns the manual actions that still apply to the
+// project at root. Unlike ManualActionsBetween, it filters the combined list
+// against the project's actual structure, dependencies and imports, so an
+// application that already migrated gets no stale migration notice. The
+// upgrade plan and inspect upgrade-notes both use this so they agree with each
+// other and with doctor's per-action detectors.
+func ManualActionsForProject(
+	root string,
+	fromVersion string,
+	toVersion string,
+	includeInertiaMigration bool,
+) ([]ManualAction, error) {
+	actions, err := ManualActionsBetween(fromVersion, toVersion, includeInertiaMigration)
+	if err != nil {
+		return nil, err
+	}
+	combined := mergeManualActions(
+		actions,
+		legacyBreakingManualActions(includeInertiaMigration),
+	)
+	return filterManualActionsForProject(root, combined), nil
+}
+
 func templRootMigrationInstructions() string {
 	var instructions strings.Builder
 	instructions.WriteString(

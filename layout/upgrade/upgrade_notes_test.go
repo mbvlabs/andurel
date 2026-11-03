@@ -1,8 +1,6 @@
 package upgrade
 
 import (
-	"os"
-	"path/filepath"
 	"slices"
 	"testing"
 
@@ -59,40 +57,72 @@ func TestPreReleaseUpgradesOnlyEmitApprovedRcOneBreakingActions(t *testing.T) {
 }
 
 func TestRcOneManualActionsOnlyApplyToLegacyProjects(t *testing.T) {
-	actions, err := manualActionsForUpgrade("v2.0.0-beta.5", "v2.0.0-rc.1", true)
-	if err != nil {
-		t.Fatal(err)
+	writeState := func(t *testing.T, root string, goMod string, files map[string]string) {
+		t.Helper()
+		mustWriteTestFile(t, root, "go.mod", []byte(goMod))
+		for rel, content := range files {
+			mustWriteTestFile(t, root, rel, []byte(content))
+		}
 	}
-	if len(actions) != 2 {
-		t.Fatalf("rc.1 actions = %#v, want both breaking notices", actions)
+	postmandMod := "module testapp\n\ngo 1.27.1\n\nrequire github.com/mbvlabs/andurel/pkg/postmand v0.1.0\n"
+	emailMod := "module testapp\n\ngo 1.27.1\n\nrequire github.com/mbvlabs/andurel/pkg/email v0.6.1\n"
+	migratedRoot := map[string]string{
+		"resources/root.html": "<!doctype html>\n",
+		"resources/root.go":   "package resources\n",
 	}
-
-	root := t.TempDir()
-	mustWriteTestFile(t, root, "go.mod", []byte(
-		"module testapp\n\ngo 1.27.1\n\nrequire github.com/mbvlabs/andurel/pkg/email v0.6.1\n",
-	))
-	mustWriteTestFile(t, root, "resources/root.templ", []byte("package resources\n"))
-	mustWriteTestFile(t, root, "resources/root_templ.go", []byte("package resources\n"))
-
-	legacy := filterManualActionsForProject(root, actions)
-	if got := actionIDs(legacy); !slices.Equal(got, []string{templRootActionID, postmandMigrationActionID}) {
-		t.Fatalf("legacy project actions = %#v, want both notices", got)
+	legacyRoot := map[string]string{
+		"resources/root.templ":    "package resources\n",
+		"resources/root_templ.go": "package resources\n",
 	}
 
-	if err := os.Remove(filepath.Join(root, "resources", "root.templ")); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Remove(filepath.Join(root, "resources", "root_templ.go")); err != nil {
-		t.Fatal(err)
-	}
-	mustWriteTestFile(t, root, "resources/root.html", []byte("<!doctype html>\n"))
-	mustWriteTestFile(t, root, "resources/root.go", []byte("package resources\n"))
-	mustWriteTestFile(t, root, "go.mod", []byte(
-		"module testapp\n\ngo 1.27.1\n\nrequire github.com/mbvlabs/andurel/pkg/postmand v0.1.0\n",
-	))
+	for _, tc := range []struct {
+		name  string
+		goMod string
+		files map[string]string
+		want  []string
+	}{
+		{
+			name:  "already migrated",
+			goMod: postmandMod,
+			files: migratedRoot,
+			want:  nil,
+		},
+		{
+			name:  "legacy root and pkg/email",
+			goMod: emailMod,
+			files: legacyRoot,
+			want:  []string{templRootActionID, postmandMigrationActionID},
+		},
+		{
+			name:  "root migrated only",
+			goMod: emailMod,
+			files: migratedRoot,
+			want:  []string{postmandMigrationActionID},
+		},
+		{
+			name:  "pkg/email migrated only",
+			goMod: postmandMod,
+			files: legacyRoot,
+			want:  []string{templRootActionID},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeState(t, root, tc.goMod, tc.files)
 
-	if migrated := filterManualActionsForProject(root, actions); len(migrated) != 0 {
-		t.Fatalf("migrated project actions = %#v, want none", actionIDs(migrated))
+			actions, err := ManualActionsForProject(
+				root,
+				"v2.0.0-beta.5",
+				"v2.0.0-rc.1",
+				true,
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := actionIDs(actions); !slices.Equal(got, tc.want) {
+				t.Fatalf("actions = %#v, want %#v", got, tc.want)
+			}
+		})
 	}
 }
 
