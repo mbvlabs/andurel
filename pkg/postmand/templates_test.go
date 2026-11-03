@@ -121,6 +121,81 @@ func TestTemplatesUnknownNameListsAvailableTemplates(t *testing.T) {
 	}
 }
 
+func TestParseTemplatesRequiresMatchingPairs(t *testing.T) {
+	tests := []struct {
+		name  string
+		files fstest.MapFS
+		wants []string
+	}{
+		{
+			name: "HTML without text",
+			files: fstest.MapFS{
+				"templates/welcome_email.html.tmpl": &fstest.MapFile{
+					Data: []byte("<p>Welcome</p>"),
+				},
+				"templates/reset_password.html.tmpl": &fstest.MapFile{
+					Data: []byte("<p>Reset</p>"),
+				},
+				"templates/reset_password.txt.tmpl": &fstest.MapFile{
+					Data: []byte("Reset"),
+				},
+			},
+			wants: []string{
+				"welcome_email has HTML but no text template (welcome_email.txt.tmpl)",
+			},
+		},
+		{
+			name: "text without HTML",
+			files: fstest.MapFS{
+				"templates/welcome_email.html.tmpl": &fstest.MapFile{
+					Data: []byte("<p>Welcome</p>"),
+				},
+				"templates/welcome_email.txt.tmpl": &fstest.MapFile{
+					Data: []byte("Welcome"),
+				},
+				"templates/reset_password.txt.tmpl": &fstest.MapFile{
+					Data: []byte("Reset"),
+				},
+			},
+			wants: []string{
+				"reset_password has text but no HTML template (reset_password.html.tmpl)",
+			},
+		},
+		{
+			name: "fully mismatched",
+			files: fstest.MapFS{
+				"templates/welcome_email.html.tmpl": &fstest.MapFile{
+					Data: []byte("<p>Welcome</p>"),
+				},
+				"templates/reset_password.txt.tmpl": &fstest.MapFile{
+					Data: []byte("Reset"),
+				},
+			},
+			wants: []string{
+				"welcome_email has HTML but no text template (welcome_email.txt.tmpl)",
+				"reset_password has text but no HTML template (reset_password.html.tmpl)",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := ParseTemplates(test.files, "templates")
+			if err == nil {
+				t.Fatal("ParseTemplates() = nil error, want unmatched-pair error")
+			}
+			if !strings.Contains(err.Error(), "template pairs mismatch") {
+				t.Fatalf("ParseTemplates() error = %q, want a template-pair error", err)
+			}
+			for _, want := range test.wants {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("ParseTemplates() error = %q, want %q", err, want)
+				}
+			}
+		})
+	}
+}
+
 func TestTemplatesMissingKeyIsAnError(t *testing.T) {
 	templates := MustParseTemplates(fstest.MapFS{
 		"templates/missing_key.html.tmpl": &fstest.MapFile{

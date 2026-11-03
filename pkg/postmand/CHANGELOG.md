@@ -6,4 +6,5 @@ All notable changes to the standalone Andurel postmand module are documented her
 
 ## 0.1.0 - 2026-11-03
 
-Initial release: successor of pkg/email (renamed), adds Templates renderer.
+Initial release: successor of pkg/email (renamed), adds Templates renderer and
+rejects unpaired HTML/text templates.

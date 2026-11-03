@@ -12,8 +12,10 @@ import (
 )
 
 const (
-	htmlTemplatePattern = "*.html.tmpl"
-	textTemplatePattern = "*.txt.tmpl"
+	htmlTemplateSuffix  = ".html.tmpl"
+	textTemplateSuffix  = ".txt.tmpl"
+	htmlTemplatePattern = "*" + htmlTemplateSuffix
+	textTemplatePattern = "*" + textTemplateSuffix
 )
 
 // Templates renders the html/text template pairs exported by React Email.
@@ -41,6 +43,10 @@ func ParseTemplates(fsys fs.FS, dir string) (*Templates, error) {
 
 	textTemplates, textFiles, err := parseTemplateKind(fsys, dir, textTemplatePattern, "text")
 	if err != nil {
+		return nil, err
+	}
+
+	if err := validateTemplatePairs(htmlFiles, textFiles); err != nil {
 		return nil, err
 	}
 
@@ -111,6 +117,55 @@ func (t *Templates) execute(
 	}
 
 	return body.String(), nil
+}
+
+// validateTemplatePairs rejects a template set where an HTML template has no
+// text counterpart or the other way around. React Email always exports both,
+// so an unpaired file means the export or the committed tree is incomplete.
+func validateTemplatePairs(htmlFiles, textFiles map[string]string) error {
+	missingText := missingTemplateNames(htmlFiles, textFiles)
+	missingHTML := missingTemplateNames(textFiles, htmlFiles)
+	if len(missingText) == 0 && len(missingHTML) == 0 {
+		return nil
+	}
+
+	problems := make([]string, 0, len(missingText)+len(missingHTML))
+	for _, name := range missingText {
+		problems = append(
+			problems,
+			fmt.Sprintf(
+				"%s has HTML but no text template (%s)",
+				name,
+				name+textTemplateSuffix,
+			),
+		)
+	}
+	for _, name := range missingHTML {
+		problems = append(
+			problems,
+			fmt.Sprintf(
+				"%s has text but no HTML template (%s)",
+				name,
+				name+htmlTemplateSuffix,
+			),
+		)
+	}
+
+	return fmt.Errorf("postmand: template pairs mismatch: %s", strings.Join(problems, ", "))
+}
+
+// missingTemplateNames returns the sorted names present in files but absent
+// from counterparts.
+func missingTemplateNames(files, counterparts map[string]string) []string {
+	missing := make([]string, 0)
+	for name := range files {
+		if _, ok := counterparts[name]; !ok {
+			missing = append(missing, name)
+		}
+	}
+	sort.Strings(missing)
+
+	return missing
 }
 
 func parseTemplateKind(
