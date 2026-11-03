@@ -131,6 +131,94 @@ func TestDetectGitVersion(t *testing.T) {
 	}
 }
 
+func TestBuildAppDisablesVCSStampingOnlyWithoutGitHead(t *testing.T) {
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git is not installed")
+	}
+
+	tests := []struct {
+		name      string
+		commit    bool
+		wantBuild bool
+	}{
+		{name: "unborn repository", commit: false, wantBuild: true},
+		{name: "committed repository", commit: true, wantBuild: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetCLITestSeams(t)
+
+			root := t.TempDir()
+			writeTestFile(t, root, "go.mod", "module example.com/app\n\ngo 1.27.1\n")
+			writeTestFile(t, root, "cmd/app/main.go", "package main\n\nfunc main() {}\n")
+			lock := layout.NewAndurelLock("test")
+			if err := lock.WriteLockFile(root); err != nil {
+				t.Fatalf("write lock: %v", err)
+			}
+			runGit(t, root, "init")
+			if tt.commit {
+				runGit(t, root, "config", "user.email", "test@example.com")
+				runGit(t, root, "config", "user.name", "Test User")
+				runGit(t, root, "add", "-A")
+				runGit(t, root, "commit", "-m", "initial")
+			}
+
+			logPath := filepath.Join(root, "commands.log")
+			fakePath := t.TempDir()
+			writeExecutable(t, fakePath, "go", fakeGoCommandScript(logPath))
+			t.Setenv("PATH", fakePath+string(os.PathListSeparator)+filepath.Dir(gitPath))
+
+			report, err := buildApp(root, "1.2.3", []string{"app"})
+			if err != nil {
+				t.Fatalf("buildApp: %v", err)
+			}
+			if report.Version != "1.2.3" || len(report.Artifacts) != 1 {
+				t.Fatalf("build report = %#v", report)
+			}
+
+			log := readBuildTestFile(t, logPath)
+			gotBuildVCS := strings.Contains(log, "-buildvcs=false")
+			if gotBuildVCS != tt.wantBuild {
+				t.Fatalf("-buildvcs=false = %t, want %t in:\n%s", gotBuildVCS, tt.wantBuild, log)
+			}
+		})
+	}
+}
+
+func TestBuildAppUsesDevVersionForUnbornRepository(t *testing.T) {
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git is not installed")
+	}
+	resetCLITestSeams(t)
+
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/app\n\ngo 1.27.1\n")
+	writeTestFile(t, root, "cmd/app/main.go", "package main\n\nfunc main() {}\n")
+	lock := layout.NewAndurelLock("test")
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatalf("write lock: %v", err)
+	}
+	runGit(t, root, "init")
+
+	logPath := filepath.Join(root, "commands.log")
+	fakePath := t.TempDir()
+	writeExecutable(t, fakePath, "go", fakeGoCommandScript(logPath))
+	t.Setenv("PATH", fakePath+string(os.PathListSeparator)+filepath.Dir(gitPath))
+
+	report, err := buildApp(root, "", []string{"app"})
+	if err != nil {
+		t.Fatalf("buildApp: %v", err)
+	}
+	if report.Version != "dev" {
+		t.Fatalf("build version = %q, want dev without a Git HEAD", report.Version)
+	}
+	if !strings.Contains(readBuildTestFile(t, logPath), "-buildvcs=false") {
+		t.Fatalf("unborn repository build did not disable VCS stamping")
+	}
+}
+
 func TestBuildAppRunsExpectedToolchain(t *testing.T) {
 	resetCLITestSeams(t)
 
@@ -176,16 +264,16 @@ func (VerifyEmail) ToHTML() (string, error) { return "", nil }
 	log := readBuildTestFile(t, logPath)
 	for _, want := range []string{
 		"pnpm install --frozen-lockfile",
-		"pnpm run email:export",
+		"pnpm --config.verify-deps-before-run=false run email:export",
 		"pnpm run build",
 		"go mod download",
-		"go build -v -ldflags -X main.appVersion=1.2.3 -X example.com/app/config.BuildVersion=1.2.3 -o dist/app ./cmd/app",
+		"go build -v -ldflags -X main.appVersion=1.2.3 -X example.com/app/config.BuildVersion=1.2.3 -buildvcs=false -o dist/app ./cmd/app",
 	} {
 		if !strings.Contains(log, want) {
 			t.Fatalf("command log missing %q:\n%s", want, log)
 		}
 	}
-	exportIndex := strings.Index(log, "pnpm run email:export")
+	exportIndex := strings.Index(log, "pnpm --config.verify-deps-before-run=false run email:export")
 	buildIndex := strings.Index(log, "pnpm run build")
 	if exportIndex < 0 || buildIndex < 0 || exportIndex > buildIndex {
 		t.Fatalf("email:export must run before the Vite build:\n%s", log)
@@ -341,7 +429,7 @@ func TestBuildAppBuildsEveryProcessExceptUtilityCommands(t *testing.T) {
 
 	log := readBuildTestFile(t, logPath)
 	for _, process := range want {
-		wantLine := "go build -v -ldflags -X main.appVersion=1.2.3 -X example.com/app/config.BuildVersion=1.2.3 -o dist/" +
+		wantLine := "go build -v -ldflags -X main.appVersion=1.2.3 -X example.com/app/config.BuildVersion=1.2.3 -buildvcs=false -o dist/" +
 			process + " ./cmd/" + process
 		if !strings.Contains(log, wantLine) {
 			t.Fatalf("command log missing %q:\n%s", wantLine, log)

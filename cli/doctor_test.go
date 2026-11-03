@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -480,6 +481,120 @@ func (VerifyEmail) ToHTML() (string, error) { return "", nil }
 	}
 	if !strings.Contains(result.hint, "pnpm install") {
 		t.Fatalf("hint = %q, want pnpm install fix", result.hint)
+	}
+}
+
+func TestCheckEmailsExportReportsCommandStdoutOnFailure(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "emails/verify_email.go", `package emails
+
+type VerifyEmail struct {
+	VerificationCode string
+}
+
+func (VerifyEmail) ToHTML() (string, error) { return "", nil }
+`)
+	writeTestFile(t, root, "emails/verify-email.tsx", "export default function VerifyEmail() { return null }\n")
+	writeTestFile(t, root, "emails/export.tsx", "export {}\n")
+	writeTestFile(t, root, "node_modules/.keep", "")
+	if _, err := generateEmailsFiles(root); err != nil {
+		t.Fatalf("generateEmailsFiles: %v", err)
+	}
+
+	fakePath := t.TempDir()
+	writeExecutable(
+		t,
+		fakePath,
+		"pnpm",
+		"#!/bin/sh\nprintf 'email export failed on stdout\\n'\nprintf 'email export failed on stderr\\n' >&2\nexit 1\n",
+	)
+	t.Setenv("PATH", fakePath)
+
+	result := checkEmailsExport(root, false)
+	if result.status != statusFail {
+		t.Fatalf("checkEmailsExport = %#v, want fail", result)
+	}
+	details := strings.Join(result.details, "\n")
+	for _, want := range []string{
+		"email export failed on stdout",
+		"email export failed on stderr",
+	} {
+		if !strings.Contains(details, want) {
+			t.Fatalf("details missing %q:\n%s", want, details)
+		}
+	}
+}
+
+func TestCheckEmailsExportRunsIsolatedPnpmExport(t *testing.T) {
+	for _, tool := range []string{"node", "pnpm"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skipf("%s not found in PATH; skipping isolated pnpm export check", tool)
+		}
+	}
+
+	root := t.TempDir()
+	writeTestFile(t, root, "emails/verify_email.go", `package emails
+
+type VerifyEmail struct {
+	VerificationCode string
+}
+
+func (VerifyEmail) ToHTML() (string, error) { return "", nil }
+`)
+	writeTestFile(t, root, "emails/verify-email.tsx", "export default function VerifyEmail() { return null }\n")
+	writeTestFile(t, root, "emails/export.tsx", "export {}\n")
+	writeTestFile(t, root, "package.json", `{
+  "name": "app",
+  "private": true,
+  "scripts": {
+    "email:export": "node emails/export.cjs"
+  }
+}
+`)
+	writeTestFile(t, root, "emails/export.cjs", `const fs = require("node:fs")
+
+fs.mkdirSync("emails/templates", { recursive: true })
+fs.writeFileSync("emails/templates/verify_email.html.tmpl", "verify email\n")
+`)
+	writeTestFile(t, root, "emails/templates/verify_email.html.tmpl", "verify email\n")
+	if _, err := generateEmailsFiles(root); err != nil {
+		t.Fatalf("generateEmailsFiles: %v", err)
+	}
+
+	install := exec.Command("pnpm", "install", "--reporter=append-only")
+	install.Dir = root
+	if out, err := install.CombinedOutput(); err != nil {
+		t.Skipf("pnpm install unavailable, skipping isolated pnpm export check: %v\n%s", err, out)
+	}
+
+	authored := []string{
+		"package.json",
+		"emails/export.cjs",
+		"emails/templates/verify_email.html.tmpl",
+		"emails/generated/props.ts",
+		"emails/generated/manifest.ts",
+	}
+	before := make(map[string][]byte, len(authored))
+	for _, path := range authored {
+		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
+		if err != nil {
+			t.Fatalf("read %s before export check: %v", path, err)
+		}
+		before[path] = content
+	}
+
+	result := checkEmailsExport(root, false)
+	if result.status != statusPass {
+		t.Fatalf("checkEmailsExport = %#v, want pass", result)
+	}
+	for _, path := range authored {
+		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
+		if err != nil {
+			t.Fatalf("read %s after export check: %v", path, err)
+		}
+		if !bytes.Equal(content, before[path]) {
+			t.Fatalf("export check changed authored file %s", path)
+		}
 	}
 }
 

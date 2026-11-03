@@ -3,6 +3,7 @@ package golden
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -72,6 +73,42 @@ func TestEmailExportMatchesCommittedTemplates(t *testing.T) {
 				want,
 			)
 		}
+	}
+
+	// Doctor regenerates and exports in a temporary project copy with a
+	// symlinked node_modules. Require the real pnpm export there to pass, not
+	// just the in-project sync above.
+	doctorOut, _ := goldentest.RunCLIExit(t, project, "doctor", "--json")
+	var doctorEnvelope struct {
+		Data struct {
+			Checks []struct {
+				Name    string   `json:"name"`
+				Status  string   `json:"status"`
+				Message string   `json:"message"`
+				Details []string `json:"details"`
+			} `json:"checks"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(doctorOut, &doctorEnvelope); err != nil {
+		t.Fatalf("parse doctor --json output: %v\n%s", err, doctorOut)
+	}
+	emailCheckFound := false
+	for _, check := range doctorEnvelope.Data.Checks {
+		if check.Name != "emails export" {
+			continue
+		}
+		emailCheckFound = true
+		if check.Status != "pass" {
+			t.Fatalf(
+				"doctor emails export = %s: %s\n%s",
+				check.Status,
+				check.Message,
+				strings.Join(check.Details, "\n"),
+			)
+		}
+	}
+	if !emailCheckFound {
+		t.Fatalf("doctor output has no emails export check:\n%s", doctorOut)
 	}
 
 	// A literal "{{" anywhere in the rendered output would break Go

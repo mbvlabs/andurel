@@ -214,7 +214,8 @@ func buildProject(rootDir string, opts buildOptions) (buildReport, error) {
 	}
 
 	appVersion := opts.Version
-	if appVersion == "" {
+	vcsAvailable := gitHeadAvailable(rootDir)
+	if appVersion == "" && vcsAvailable {
 		if v, err := detectGitVersion(rootDir); err == nil {
 			appVersion = v
 		}
@@ -229,7 +230,14 @@ func buildProject(rootDir string, opts buildOptions) (buildReport, error) {
 		defer func() { _ = os.RemoveAll(workRoot) }()
 	}
 
-	report, err := runBuildSteps(workRoot, lock, selected, appVersion, output.Isolated)
+	report, err := runBuildSteps(
+		workRoot,
+		lock,
+		selected,
+		appVersion,
+		output.Isolated,
+		vcsAvailable,
+	)
 	if err != nil {
 		return buildReport{}, err
 	}
@@ -251,6 +259,7 @@ func runBuildSteps(
 	selected []buildProcess,
 	appVersion string,
 	isolated bool,
+	vcsAvailable bool,
 ) (buildReport, error) {
 	binDir := filepath.Join(rootDir, "bin")
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
@@ -370,7 +379,13 @@ func runBuildSteps(
 	}
 
 	for _, process := range selected {
-		artifacts, err := buildProcessBinary(rootDir, modulePath, process, appVersion)
+		artifacts, err := buildProcessBinary(
+			rootDir,
+			modulePath,
+			process,
+			appVersion,
+			vcsAvailable,
+		)
 		if err != nil {
 			return buildReport{}, err
 		}
@@ -385,6 +400,7 @@ func buildProcessBinary(
 	modulePath string,
 	process buildProcess,
 	appVersion string,
+	vcsAvailable bool,
 ) (buildArtifact, error) {
 	outputPath := filepath.Join("dist", process.Name)
 
@@ -401,6 +417,13 @@ func buildProcessBinary(
 	}
 	if len(ldflags) > 0 {
 		args = append(args, "-ldflags", strings.Join(ldflags, " "))
+	}
+	if !vcsAvailable {
+		// Go's automatic VCS stamping runs `git log -1` and prints a fatal
+		// diagnostic for every package when the repository has no HEAD yet.
+		// Such a repository has no revision to stamp, so turn stamping off for
+		// this build only. Committed repositories keep automatic stamping.
+		args = append(args, "-buildvcs=false")
 	}
 	args = append(args, "-o", outputPath, "./cmd/"+process.Name)
 
@@ -640,6 +663,16 @@ func detectGitVersion(rootDir string) (string, error) {
 		return "", fmt.Errorf("git describe failed: %w", err)
 	}
 	return strings.TrimSpace(string(out)), nil
+}
+
+// gitHeadAvailable reports whether rootDir resolves to a Git repository with a
+// commit. Go's VCS stamping cannot stamp an unborn repository: it invokes git
+// log -1 for every package and prints a fatal diagnostic even though the build
+// succeeds. Callers use this to disable stamping only in that case.
+func gitHeadAvailable(rootDir string) bool {
+	cmd := exec.Command("git", "rev-parse", "--verify", "--quiet", "HEAD")
+	cmd.Dir = rootDir
+	return cmd.Run() == nil
 }
 
 func extractModulePath(rootDir string) (string, error) {

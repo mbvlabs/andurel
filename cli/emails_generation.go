@@ -160,7 +160,16 @@ func runEmailsExport(ctx context.Context, rootDir string, stdout, stderr io.Writ
 		)
 	}
 
-	exportCmd := exec.CommandContext(ctx, packageManager, "run", "email:export")
+	args := []string{"run", "email:export"}
+	if packageManager == "pnpm" {
+		// pnpm verifies the dependency state before running a script. That
+		// verification runs an install, which refuses a node_modules symlink
+		// resolving outside the project root (the diagnostic temp copy uses
+		// one) and would be a write to the authored project. The caller has
+		// already checked node_modules exists; run the script directly.
+		args = append([]string{"--config.verify-deps-before-run=false"}, args...)
+	}
+	exportCmd := exec.CommandContext(ctx, packageManager, args...)
 	exportCmd.Dir = rootDir
 	exportCmd.Stdout = stdout
 	exportCmd.Stderr = stderr

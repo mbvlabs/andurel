@@ -1379,18 +1379,18 @@ func checkEmailsExport(rootDir string, verbose bool) checkResult {
 		if err := os.Symlink(nodeModules, filepath.Join(tempRoot, "node_modules")); err != nil {
 			return fmt.Errorf("link frontend dependencies for export: %w", err)
 		}
-		var stdout, stderr bytes.Buffer
+		var commandOutput bytes.Buffer
 		if err := runEmailsExport(
 			context.Background(),
 			tempRoot,
-			&stdout,
-			&stderr,
+			&commandOutput,
+			&commandOutput,
 		); err != nil {
-			return fmt.Errorf(
-				"email export failed: %w: %s",
-				err,
-				strings.TrimSpace(stderr.String()),
-			)
+			detail := strings.TrimSpace(commandOutput.String())
+			if detail == "" {
+				return fmt.Errorf("email export failed: %w", err)
+			}
+			return fmt.Errorf("email export failed: %w: %s", err, detail)
 		}
 		templatesChanged, err := compareEmailTemplateFiles(rootDir, tempRoot)
 		if err != nil {
