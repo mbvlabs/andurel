@@ -221,21 +221,16 @@ func TestRunFmtOrchestratesFormattersAndErrors(t *testing.T) {
 		calls = append(calls, "golines")
 		return errors.New("wrap failed")
 	}
-	runTemplFmtFunc = func(rootDir string, checkMode bool) error {
-		calls = append(calls, "templ")
-		return nil
-	}
-
-	err := runFmt(t.TempDir(), true, false, false)
+	err := runFmt(t.TempDir(), true, false)
 	if err == nil || !strings.Contains(err.Error(), "some files need formatting") {
 		t.Fatalf("expected check mode error, got %v", err)
 	}
-	if !reflect.DeepEqual(calls, []string{"gofmt", "golines", "templ"}) {
+	if !reflect.DeepEqual(calls, []string{"gofmt", "golines"}) {
 		t.Fatalf("formatter calls = %#v", calls)
 	}
 
 	calls = nil
-	err = runFmt(t.TempDir(), false, true, true)
+	err = runFmt(t.TempDir(), false, true)
 	if err != nil {
 		t.Fatalf("skip all formatters: %v", err)
 	}
@@ -276,16 +271,6 @@ func TestFormatterHelpers(t *testing.T) {
 		t.Fatalf("missing golines should fail check mode, got: %v", err)
 	}
 
-	if err := runTemplFmt(root, false); err != nil {
-		t.Fatalf("missing templ should be skipped: %v", err)
-	}
-	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nprintf '%s\\n' \"$@\" >> templ.args\n")
-	writeTestFile(t, root, "resources/root.templ", "package resources\n")
-	if err := runTemplFmt(root, false); err != nil {
-		t.Fatalf("runTemplFmt: %v", err)
-	}
-	assertTestFileContains(t, root, "templ.args", "fmt")
-	assertTestFileContains(t, root, "templ.args", "resources")
 }
 
 func TestSyncBinariesCleansStaleToolsAndSkipsCurrentVersions(t *testing.T) {
@@ -782,7 +767,7 @@ func TestNewProjectValidatesInertiaAndBuildsReports(t *testing.T) {
 	}
 }
 
-func TestRootHelpAndBinaryChecks(t *testing.T) {
+func TestRootHelpAndRunCommand(t *testing.T) {
 	resetCLITestSeams(t)
 	root := t.TempDir()
 	writeGoModule(t, root)
@@ -820,24 +805,6 @@ func TestRootHelpAndBinaryChecks(t *testing.T) {
 		t.Fatalf("expected isInAndurelProject true")
 	}
 
-	if err := checkBinaries(root); err != nil {
-		t.Fatalf("no lock should not require binaries: %v", err)
-	}
-	writeTestFile(t, root, "andurel.lock", "")
-	if err := checkBinaries(root); err != nil {
-		t.Fatalf("empty lock should not require binaries: %v", err)
-	}
-	writeTestFile(t, root, "andurel.lock", "{}")
-	if err := checkBinaries(
-		root,
-	); err == nil ||
-		!strings.Contains(err.Error(), "bin/templ not found") {
-		t.Fatalf("expected missing templ error, got %v", err)
-	}
-	writeExecutable(t, root, "bin/templ", "#!/bin/sh\n")
-	if err := checkBinaries(root); err != nil {
-		t.Fatalf("templ present: %v", err)
-	}
 	originalRunDevServer := runDevServerFunc
 	t.Cleanup(func() { runDevServerFunc = originalRunDevServer })
 	var got devserver.Options
@@ -893,10 +860,11 @@ func TestStandardHelpRendering(t *testing.T) {
 	}
 }
 
-func TestRunTemplAndToolListCommands(t *testing.T) {
+func TestToolListCommands(t *testing.T) {
 	resetCLITestSeams(t)
 	root := t.TempDir()
 	writeGoModule(t, root)
+	writeExecutable(t, root, "bin/goose", "#!/bin/sh\necho goose v3.0.0\n")
 
 	originalFindGoModRoot := findGoModRoot
 	findGoModRoot = func() (string, error) { return root, nil }
@@ -904,21 +872,8 @@ func TestRunTemplAndToolListCommands(t *testing.T) {
 		findGoModRoot = originalFindGoModRoot
 	})
 
-	if err := runTempl(
-		"generate",
-	); err == nil ||
-		!strings.Contains(err.Error(), "templ binary not found") {
-		t.Fatalf("expected missing templ error, got %v", err)
-	}
-	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nprintf '%s\\n' \"$@\" > templ.args\n")
-	if err := runTempl("generate", "./resources"); err != nil {
-		t.Fatalf("runTempl: %v", err)
-	}
-	assertTestFileContains(t, root, "templ.args", "generate")
-	assertTestFileContains(t, root, "templ.args", "./resources")
-
 	lock := layout.NewAndurelLock("test")
-	lock.Tools["templ"] = validTestTool("templ", "v0.3.0")
+	lock.Tools["goose"] = validTestTool("goose", "v3.0.0")
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
 	}
@@ -944,7 +899,7 @@ func TestRunTemplAndToolListCommands(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("tool list subcommand: %v", err)
 	}
-	if !strings.Contains(out.String(), "templ") ||
+	if !strings.Contains(out.String(), "goose") ||
 		!strings.Contains(out.String(), "tool is installed") {
 		t.Fatalf("tool list output missing data:\n%s", out.String())
 	}
@@ -957,9 +912,9 @@ func TestRunTemplAndToolListCommands(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("tool list human: %v", err)
 	}
-	if got := out.String(); !strings.Contains(got, "templ") ||
+	if got := out.String(); !strings.Contains(got, "goose") ||
 		!strings.Contains(got, "installed") ||
-		!strings.Contains(got, "v0.3.0") {
+		!strings.Contains(got, "v3.0.0") {
 		t.Fatalf("tool list human output missing table:\n%s", got)
 	}
 }
@@ -1061,11 +1016,11 @@ func TestRunUpgradeStructuredAndHumanBranches(t *testing.T) {
 		return nil
 	}
 	lock := layout.NewAndurelLock("v1.0.0")
-	lock.Tools["templ"] = validTestTool("templ", "v0.1.0")
+	lock.Tools["goose"] = validTestTool("goose", "v3.0.0")
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
 	}
-	writeExecutable(t, root, "bin/templ", "#!/bin/sh\necho templ v0.1.0\n")
+	writeExecutable(t, root, "bin/goose", "#!/bin/sh\necho goose v3.0.0\n")
 	human := &cobra.Command{Use: "upgrade"}
 	human.Flags().Bool("dry-run", false, "")
 	human.Flags().Bool("diff", false, "")
@@ -1262,7 +1217,7 @@ func TestPrintUpgradeSummary(t *testing.T) {
 		ToolsAdded:          4,
 		ToolsUpdated:        5,
 		ToolsRemoved:        6,
-		ToolMetadataChanges: []string{"templ"},
+		ToolMetadataChanges: []string{"goose"},
 	})
 	for _, want := range []string{
 		"2 framework files replaced",

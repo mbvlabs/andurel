@@ -119,30 +119,6 @@
   sha256 = 'b800b0659dc64b9f03ede5660244d9415d777d5739ae2889280877ca37be742a'
 
 [[hashes]]
-  tool = 'templ'
-  version = 'v0.3.1020'
-  platform = 'linux/amd64'
-  sha256 = 'd1e726e8e78a6cf7e1e72ce3746f30fd94ec0eba10be1abab02208a41efc9aa5'
-
-[[hashes]]
-  tool = 'templ'
-  version = 'v0.3.1020'
-  platform = 'linux/arm64'
-  sha256 = '8d38728fa82c0ee568d2ae1ce0720963402d384dd59d4c76bcdbb38d581c815c'
-
-[[hashes]]
-  tool = 'templ'
-  version = 'v0.3.1020'
-  platform = 'darwin/amd64'
-  sha256 = 'f1522f2558081335584fd4fb67d329d02a9ae6e83dd88b14cae1ad84c770e5c0'
-
-[[hashes]]
-  tool = 'templ'
-  version = 'v0.3.1020'
-  platform = 'darwin/arm64'
-  sha256 = 'f391943e3e49ece301f90c2283c7f9e629081f18b0b3ab6b48cb4b87ad94b206'
-
-[[hashes]]
   tool = 'usql'
   version = 'v0.21.4'
   platform = 'linux/amd64'

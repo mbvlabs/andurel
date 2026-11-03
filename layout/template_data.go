@@ -203,10 +203,10 @@ func (td *TemplateData) GetInertia() string {
 	return td.Inertia
 }
 
-// EmailPackageVersion returns the standalone email module version verified with
-// this framework release.
-func (td *TemplateData) EmailPackageVersion() string {
-	return versions.Email
+// PostmandPackageVersion returns the standalone postmand module version
+// verified with this framework release.
+func (td *TemplateData) PostmandPackageVersion() string {
+	return versions.Postmand
 }
 
 // AnduinPackageVersion returns the standalone anduin HTTP module version

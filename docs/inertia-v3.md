@@ -4,13 +4,13 @@ Andurel's Inertia v3 protocol implementation is independently versioned at
 `github.com/mbvlabs/andurel/pkg/inertia`. Application handlers and `app/`
 import that package directly. The package provides Vite
 integration, protocol behavior, and the SSR runtime. The application owns its
-compiled templ document at `resources/root.templ` (package `resources`).
+root document at `resources/root.html`, rendered with standard-library `html/template` from `resources/root.go` (package `resources`).
 Generated `config/inertia.go` contains the ENV-backed settings.
 `cmd/ssr` loads those fields and passes them into `NewSSRRuntime`;
 `app/` passes the client URL, timeout, and max response bytes into
-`NewRenderer`. The document renders with the request context, so the root
-template can read router state such as `anduin.RequestHost(ctx)` without an
-extra prop. The browser adapter remains the official
+`NewRenderer`. The root renderer receives an `inertia.RootData` value and has
+no request context; request-dependent document differences belong in a page
+component or layout. The browser adapter remains the official
 `@inertiajs/*` client.
 
 This document is the protocol and migration baseline for the adapter. The
@@ -25,7 +25,7 @@ paths, error bag, infinite-scroll merge intent, and retained once-prop keys.
 Comma-separated header values are trimmed, empty values are discarded, and the
 context passed to prop resolvers is the handler's `context.Context`.
 
-Initial visits receive a buffered templ document. Inertia visits receive a JSON
+Initial visits receive a buffered HTML document. Inertia visits receive a JSON
 page object. Valid page responses set `X-Inertia: true`; all responses append
 `X-Inertia` to `Vary` without replacing existing values. Control responses such
 as version reloads and location visits use status 409 and never carry the
@@ -138,7 +138,7 @@ shapes. Database model structs are never passed directly to an Inertia page.
 | Flash provider | Adapt | generated `kiks` provider (`WithFlashProvider(kiks.Flashes)`) and page `flash` |
 | Global `WithSSR` engine option | Replace | per-response `Page(...).SSR()` |
 | HTTP SSR gateway | Adapt | `SSRRenderer` plus bounded `HTTPRenderer` |
-| Go `html/template` root | Replace | application-owned `resources/root.templ` supplied with `WithRoot` |
+| Go `html/template` root | Keep | application-owned `resources/root.html` supplied with `WithRoot` |
 | Custom JSON marshaller | Omit | fixed `encoding/json` for protocol safety |
 | Vite helpers | Adapt | package defaults configured by options and the official v3 plugin |
 | Precognition | Intentionally omit | no Andurel validation protocol exists yet |
@@ -146,13 +146,21 @@ shapes. Database model structs are never passed directly to an Inertia page.
 ## Version and migration policy
 
 New scaffolds pin the official browser adapters to Inertia major version 3 and
-use `@inertiajs/vite`. The doctor command treats v2 packages, Gonertia imports,
-or missing generated templ output as migration diagnostics. Existing custom
-Gonertia options are not translated silently: upgrades call them out for manual
-migration to an Andurel renderer or page option.
+use `@inertiajs/vite`. The doctor command treats v2 packages and Gonertia imports
+as migration diagnostics. The rc.1 release notes require a manual templ-root
+migration to `resources/root.html` and `resources/root.go`; upgrades leave the
+app-owned root untouched. Existing custom Gonertia options are not translated
+silently: upgrades call them out for manual migration to an Andurel renderer or
+page option.
 
 Handlers use the standalone `Renderer` directly for `Page`, `Redirect`,
 `Location`, and `Middleware`. Applications customize the initial document in
-`resources/root.templ`; `config/inertia.go` supplies it with `WithRoot`.
+`resources/root.html`; `resources/root.go` parses it with `html/template` and
+`config/inertia.go` supplies it with `WithRoot`. `RootData.PageScript`,
+`AppMount`, `SSRHead`, `SSRBody`, `ViteHead`, and `ViteBody` are pre-rendered
+safe fragments; keep them unescaped in the template. A non-template document
+uses `WithRootFunc(func(io.Writer, inertia.RootData) error)`. Compiled templ
+roots from earlier versions are deliberately not compatible; migrate them to
+`root.html` and `root.go` before upgrading.
 For local diagnostics, `WithProtocolDebug(true)` logs request classification
 and emitted metadata keys without logging prop or session values.

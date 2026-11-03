@@ -2,7 +2,7 @@
 
 A Go application built with [Andurel](https://github.com/mbvlabs/andurel), a space-grade framework for humans and agents.
 
-The app is ordinary Go you own: `domains/` for business logic and persistence, `services/` for application logic, `handlers/` for HTTP, `routes/` for route data, and `middleware/` for app HTTP concerns. The HTTP layer is `net/http` through `github.com/mbvlabs/andurel/pkg/anduin`; the frontend is Inertia (vue) + Vite. There is no Echo, no Fx, and no templ/Datastar pages.
+The app is ordinary Go you own: `domains/` for business logic and persistence, `services/` for application logic, `handlers/` for HTTP, `routes/` for route data, and `middleware/` for app HTTP concerns. The HTTP layer is `net/http` through `github.com/mbvlabs/andurel/pkg/anduin`; the frontend is Inertia (vue) + Vite. There is no Echo, no Fx, no server-rendered template pages, and no Datastar pages.
 
 ## Project Structure
 
@@ -29,7 +29,7 @@ app/
 ├── queue/                # Workers, periodic jobs and their registration
 │   └── jobs/             # Job argument types
 ├── resources/            # Inertia root document + JS app
-│   ├── root.templ        # The one page-shaped templ
+│   ├── root.html         # Inertia root document (html/template)
 │   └── js/               # Inertia Pages, Layouts, generated routes.ts and types/; create Components/ as needed
 ├── routes/               # Route data (names, paths, URL builders)
 ├── seeds/                # Database seed definitions
@@ -98,7 +98,7 @@ through an application-specific, secure workflow instead.
    andurel verify --with-tests   # also runs go test ./... (DB tests need Docker)
    ```
 
-Your application is now running at `http://localhost:8080` with live reload for Go, Templ, CSS, and Vite changes. Routes are public unless you wrap them in `middleware.AuthOnly(users, hosts)`.
+Your application is now running at `http://localhost:8080` with live reload for Go, the root document, CSS, and Vite changes. Routes are public unless you wrap them in `middleware.AuthOnly(users, hosts)`.
 
 ## Dependencies, Lockfile, And Agent Skill
 This project pins its dependencies with the selected package manager's
@@ -134,7 +134,7 @@ Secrets, `.env`, caches, and build output stay ignored.
 ### Development Server
 
 ```bash
-# Run development server with hot reload for Go, Templ, CSS, and Vite
+# Run development server with hot reload for Go, the root document, CSS, and Vite
 andurel run
 ```
 
@@ -559,10 +559,10 @@ _, err := i.queue.Insert(ctx, jobs.MyJobArgs{
 Email is authored as React Email components in `emails/` and exported to Go
 `text/template` files in `emails/templates/`. The exported templates are
 committed, so `go build`, tests and sending never need Node. Go owns the data:
-a struct in `emails/` declares `ToHTML`/`ToText`, and `emails/previews.go`
-supplies fixture values for `andurel email render`. Go ignores the TSX sources
-and the `components/` and `generated/` directories because they hold no Go
-files.
+a struct in `emails/` declares `ToHTML`/`ToText` through the shared
+`templates.HTML`/`templates.Text` renderer, and `emails/previews.go` supplies
+fixture values for `andurel email render`. Go ignores the TSX sources and the
+`components/` and `generated/` directories because they hold no Go files.
 
 **1. Create or edit the React Email component:**
 
@@ -608,8 +608,8 @@ type WelcomeEmail struct {
     UserName string
 }
 
-func (w WelcomeEmail) ToHTML() (string, error) { return renderHTML("welcome_email", w) }
-func (w WelcomeEmail) ToText() (string, error) { return renderText("welcome_email", w) }
+func (w WelcomeEmail) ToHTML() (string, error) { return templates.HTML("welcome_email", w) }
+func (w WelcomeEmail) ToText() (string, error) { return templates.Text("welcome_email", w) }
 ```
 
 **2. Regenerate and inspect:**
@@ -630,14 +630,14 @@ the email depends on data written in the same transaction:
 import (
     "fmt"
 
-    "github.com/mbvlabs/andurel/pkg/email"
+    "github.com/mbvlabs/andurel/pkg/postmand"
     "github.com/mbvlabs/andurel/pkg/storage"
 
-    appemails "app/emails"
+    "app/emails"
 )
 
-welcome := appemails.WelcomeEmail{UserName: "John Doe"}
-data, err := email.Compose(
+welcome := emails.WelcomeEmail{UserName: "John Doe"}
+data, err := postmand.Compose(
     welcome,
     "user@example.com",
     i.defaultSenderSignature,
@@ -1007,25 +1007,14 @@ router.Use(middleware.DenyFraming(config.HostAdmin))
 404s and 405s carry the headers too. Only the named hosts get the headers;
 called with no host names it does nothing.
 
-**Host-aware root template**: `resources/root.templ` renders with the request
-context, so `anduin.RequestHost(ctx)` works there as well. Use it for
-document-level differences that must not depend on the page component name — for
-example, withholding analytics on the admin host:
-
-```go
-templ Root(data inertia.RootData) {
-    <head>
-        ...
-        if anduin.RequestHost(ctx) != config.HostAdmin {
-            @analytics.Script()
-        }
-    </head>
-    ...
-}
-```
-
-`ctx` is the request context handed to templ's `Render`; no extra prop is
-needed.
+**Root document**: `resources/root.html` is rendered with standard-library
+`html/template` from `resources/root.go` and wired with
+`inertia.WithRoot(resources.Root)`. `inertia.RootData` supplies
+`.ProjectName`, `.Environment`, `.SSRHead`, `.PageScript`, `.AppMount`,
+`.SSRBody`, `.ViteHead`, and `.ViteBody`. The page JSON, SSR markup, mount
+element, and Vite tags are pre-rendered safe fragments: edit the surrounding
+markup, not their escaping. The root renderer has no request context, so
+request-dependent document variants belong in a page component or layout.
 
 **Cross-host links**: generated helpers return absolute URLs for host-bound
 routes, so use a plain `<a>` when the target host differs. An Inertia `<Link>`
@@ -1059,7 +1048,7 @@ To serve layout CSS/JS from `assets.example.com`, declare `const HostAssets rout
 1. **Live Reload**: Use `andurel run` during development for automatic reloading
 2. **Type Safety**: Let narsilc-backed domains and the Go domain types catch errors at compile time
 3. **Database Console**: Use `andurel db console` for quick database queries
-4. **Hot Reload**: Changes to Go, Templ, CSS, or Vite trigger rebuilds
+4. **Hot Reload**: Changes to Go, the root document, CSS, or Vite trigger rebuilds
 5. **Tailwind**: Use Tailwind utility classes in Inertia pages
 
 ## Common Tasks
@@ -1188,7 +1177,7 @@ verify the owner is inactive across hosts and PID namespaces before manual remov
 - [Andurel Documentation](https://github.com/mbvlabs/andurel)
 - [net/http](https://pkg.go.dev/net/http)
 - [Inertia.js](https://inertiajs.com/)
-- [templ](https://templ.guide/) (the Inertia root document)
+- [html/template](https://pkg.go.dev/html/template) (the Inertia root document)
 - [River](https://riverqueue.com/)
 - [OpenTelemetry](https://opentelemetry.io/)
 

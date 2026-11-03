@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/a-h/templ"
 	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/kiks"
@@ -163,7 +162,7 @@ func newIntegrationRenderer(t *testing.T, options ...inertia.Option) (*inertia.R
 	captured := new(inertia.RootData)
 	options = append(
 		[]inertia.Option{
-			inertia.WithRoot(integrationRoot(captured)),
+			inertia.WithRootFunc(integrationRoot(captured)),
 			inertia.WithVersion(rendererVersion),
 		},
 		options...,
@@ -186,20 +185,18 @@ func newIntegrationRenderer(t *testing.T, options ...inertia.Option) (*inertia.R
 }
 
 func integrationRoot(captured *inertia.RootData) inertia.RootFunc {
-	return func(data inertia.RootData) templ.Component {
+	return func(writer io.Writer, data inertia.RootData) error {
 		*captured = data
 
-		return templ.ComponentFunc(func(_ context.Context, writer io.Writer) error {
-			_, err := fmt.Fprintf(
-				writer,
-				`<!doctype html><html><body data-themed="true"><div id="%s"></div><script data-page="%s" type="application/json">%s</script></body></html>`,
-				data.ContainerID,
-				data.ContainerID,
-				data.PageJSON,
-			)
+		_, err := fmt.Fprintf(
+			writer,
+			`<!doctype html><html><body data-themed="true"><div id="%s"></div><script data-page="%s" type="application/json">%s</script></body></html>`,
+			data.ContainerID,
+			data.ContainerID,
+			data.PageJSON,
+		)
 
-			return err
-		})
+		return err
 	}
 }
 

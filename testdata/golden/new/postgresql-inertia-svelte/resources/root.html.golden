@@ -1,0 +1,2 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">{{if not .SSR}}<title>{{.ProjectName}}</title>{{end}}{{.SSRHead}}{{.ViteHead}}</head><body class="bg-background text-foreground">{{if .SSR}}{{.SSRBody}}{{else}}{{.PageScript}} {{.AppMount}}{{end}}{{.ViteBody}}</body></html>
+{{- /* trim the final newline so the response matches the previous root document */ -}}

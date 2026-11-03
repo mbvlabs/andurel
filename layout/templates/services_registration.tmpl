@@ -9,10 +9,10 @@ import (
 	"uuid"
 
 	"{{.ModuleName}}/domains"
-	appemails "{{.ModuleName}}/emails"
+	"{{.ModuleName}}/emails"
 	"{{.ModuleName}}/queue/jobs"
 
-	"github.com/mbvlabs/andurel/pkg/email"
+	"github.com/mbvlabs/andurel/pkg/postmand"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/mbvlabs/andurel/pkg/validation"
@@ -89,25 +89,25 @@ var ErrNoEmailToSend = errors.New("no email to send")
 func (i Identity) VerificationEmail(
 	ctx context.Context,
 	userID uuid.UUID,
-) (email.TransactionalData, error) {
+) (postmand.TransactionalData, error) {
 	user, err := i.users.Find(ctx, userID)
 	if err != nil {
 		if errors.Is(err, domains.ErrNotFound) {
-			return email.TransactionalData{}, ErrNoEmailToSend
+			return postmand.TransactionalData{}, ErrNoEmailToSend
 		}
 
-		return email.TransactionalData{}, fmt.Errorf("find verification user: %w", err)
+		return postmand.TransactionalData{}, fmt.Errorf("find verification user: %w", err)
 	}
 
 	if user.HasValidatedEmail() {
-		return email.TransactionalData{}, ErrNoEmailToSend
+		return postmand.TransactionalData{}, ErrNoEmailToSend
 	}
 
 	meta, err := json.Marshal(map[string]string{
 		"email": user.Email,
 	})
 	if err != nil {
-		return email.TransactionalData{}, fmt.Errorf("marshal verification token metadata: %w", err)
+		return postmand.TransactionalData{}, fmt.Errorf("marshal verification token metadata: %w", err)
 	}
 
 	code, err := i.tokens.ReplaceCode(
@@ -119,19 +119,19 @@ func (i Identity) VerificationEmail(
 		user.ID,
 	)
 	if err != nil {
-		return email.TransactionalData{}, fmt.Errorf("replace verification token: %w", err)
+		return postmand.TransactionalData{}, fmt.Errorf("replace verification token: %w", err)
 	}
 
-	vEmail := appemails.VerifyEmail{VerificationCode: code}
+	vEmail := emails.VerifyEmail{VerificationCode: code}
 
-	data, err := email.Compose(
+	data, err := postmand.Compose(
 		vEmail,
 		user.Email,
 		i.defaultSenderSignature,
 		"Verify Your Email Address",
 	)
 	if err != nil {
-		return email.TransactionalData{}, fmt.Errorf("render verification email: %w", err)
+		return postmand.TransactionalData{}, fmt.Errorf("render verification email: %w", err)
 	}
 
 	return data, nil

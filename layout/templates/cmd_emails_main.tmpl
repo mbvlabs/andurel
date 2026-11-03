@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	appemails "{{.ModuleName}}/emails"
+	"{{.ModuleName}}/emails"
 )
 
 type emailEntry struct {
@@ -57,7 +57,7 @@ func run(args []string) error {
 		return fmt.Errorf("unexpected arguments: %s", strings.Join(flags.Args(), " "))
 	}
 
-	previews := appemails.Previews()
+	previews := emails.Previews()
 	names := make([]string, 0, len(previews))
 	for _, preview := range previews {
 		names = append(names, preview.Name)
@@ -120,7 +120,7 @@ func run(args []string) error {
 	return nil
 }
 
-func renderPreview(outDir string, preview appemails.Preview) (renderedEmail, error) {
+func renderPreview(outDir string, preview emails.Preview) (renderedEmail, error) {
 	htmlBody, err := preview.Email.ToHTML()
 	if err != nil {
 		return renderedEmail{}, fmt.Errorf("ToHTML: %w", err)

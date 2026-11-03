@@ -43,6 +43,13 @@ Release readiness runs `TestUpgradeToHEAD` (`just test-upgrade-e2e`), which scaf
 
 Upgrade notes only exist between proper releases. Alpha and beta releases carry no manual actions: scaffold changes between pre-releases are defaults for new applications, and an existing application copies them from a fresh `andurel new` if it wants them.
 
+The exception is `v2.0.0-rc.1`, which deliberately makes two pre-rc breaking
+changes. Upgrading a beta project that still has the old shape reports
+`templ-root-v2.0.0-rc.1` (compiled templ root to `resources/root.html`) and
+`postmand-v2.0.0-rc.1` (`pkg/email` to `pkg/postmand`). The notices appear only
+while the legacy structure or dependency is present; the upgrade never rewrites
+the application-owned root document or email code.
+
 A manual action is emitted only when the upgrade crosses the release that introduced the change. Each action has a stable `id`, a title, and instructions with before/after code. Read them from `andurel upgrade --json` or the human report, apply them, then run `gofmt -w .`, `go fix ./...`, and `go vet ./...`.
 
 ## Provider adapters

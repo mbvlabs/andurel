@@ -41,7 +41,7 @@ Two commands keep an agent honest:
 | Inertia page props and request body structs emitted to TypeScript | `payloads/` (package `payloads`; standard library, `time`, and `uuid` only) |
 | Route names, route paths, URL builders | `routes/` |
 | App HTTP middleware (auth, authorization) | `middleware/` |
-| Inertia root document | `resources/root.templ` (package `resources`) |
+| Inertia root document | `resources/root.html` + `resources/root.go` (package `resources`) |
 | Inertia pages and reusable frontend components | `resources/js/Pages/`, `resources/js/Layouts/`, `resources/js/Components/` |
 | Generated TS route/payload helpers | `resources/js/routes.ts`, `resources/js/types/payloads.ts` (written by `andurel sync routes` / `sync payloads`) |
 | Tailwind entry point | `css/base.css` (imports Tailwind and `css/theme.css`; `@source` globs live here) |
@@ -52,7 +52,7 @@ Two commands keep an agent honest:
 | Apply pending SQL (one-shot process) | `cmd/migrate/` |
 | Seed data | `seeds/` or `cmd/seeds/` following the existing pattern |
 | External provider adapters | A top-level package named for its job (for example `clients/`, `payment/`) |
-| Email data structs, send helpers, and React Email components | `emails/` (`ToHTML`/`ToText` through `renderHTML`/`renderText`; TSX exported to `emails/templates/` by `andurel sync emails`) |
+| Email data structs, send helpers, and React Email components | `emails/` (`ToHTML`/`ToText` through `templates.HTML`/`templates.Text`; TSX exported to `emails/templates/` by `andurel sync emails`) |
 | River job argument types | `queue/jobs/` (`pkg/storage` owns the generic email args) |
 | River workers and queue registration | `queue/` |
 | App configuration structs and environment loading | `config/` |
@@ -288,8 +288,9 @@ Session/bag values travel on `context.Context` through `pkg/kiks`
 
 ## Resources And Frontend
 
-`resources/root.templ` is the only templ in the app: the Inertia root document
-(package `resources`). Email is React Email TSX under `emails/`, not templ.
+`resources/root.html` is the Inertia root document (package `resources`),
+parsed with `html/template` by `resources/root.go`. Email is React Email TSX
+under `emails/`.
 Page data never travels through `RootData`; pass it as props. Shared props are
 the exception: `app/` configures `inertia.WithShared` with `appVersion` and
 `hosts`, and the scaffold's shared provider adds `auth.isAuthenticated`. Every
@@ -328,8 +329,8 @@ which `app.NewQueue` passes to `storage.WithRiverPeriodicJobs`.
 Put email data structs, send helpers and the React Email components in
 `emails/`. Go ignores the `.tsx` sources and the `components/` and
 `generated/` directories because they hold no Go files. A struct declares
-exported scalar fields and `ToHTML`/`ToText`, which call `renderHTML`/
-`renderText` on the committed `emails/templates/<snake>.{html,txt}.tmpl`.
+exported scalar fields and `ToHTML`/`ToText`, which call `templates.HTML`/
+`templates.Text` on the committed `emails/templates/<snake>.{html,txt}.tmpl`.
 Author the matching `emails/<kebab>.tsx` with the shared `Layout` and
 `theme.ts` tokens, then run `andurel sync emails` to regenerate
 `emails/generated/` and the templates.

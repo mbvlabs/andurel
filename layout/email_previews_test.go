@@ -94,7 +94,7 @@ func TestEmailPreviewTemplatesAreRegistered(t *testing.T) {
 func TestEmailPreviewsTemplateListsFixtureEmails(t *testing.T) {
 	assertTemplateContains(t, "email_previews.tmpl",
 		"type Preview struct",
-		"Email   pkgemail.Transformer",
+		"Email   postmand.Transformer",
 		"// Add one entry per email",
 		`Name:    "verify_email"`,
 		`Subject: "Verify your email"`,
@@ -138,8 +138,8 @@ type ResetPassword struct {
 func (ResetPassword) ToHTML() (string, error) { return "", nil }
 func (ResetPassword) ToText() (string, error) { return "", nil }
 `)
-	writeGeneratedFile(t, root, "pkgemail/go.mod", "module github.com/mbvlabs/andurel/pkg/email\n\ngo "+goVersion+"\n")
-	writeGeneratedFile(t, root, "pkgemail/email.go", `package email
+	writeGeneratedFile(t, root, "pkgpostmand/go.mod", "module github.com/mbvlabs/andurel/pkg/postmand\n\ngo "+goVersion+"\n")
+	writeGeneratedFile(t, root, "pkgpostmand/postmand.go", `package postmand
 
 type Transformer interface {
 	ToHTML() (string, error)
@@ -150,9 +150,9 @@ type Transformer interface {
 
 go `+goVersion+`
 
-require github.com/mbvlabs/andurel/pkg/email v0.0.0
+require github.com/mbvlabs/andurel/pkg/postmand v0.0.0
 
-replace github.com/mbvlabs/andurel/pkg/email => ./pkgemail
+replace github.com/mbvlabs/andurel/pkg/postmand => ./pkgpostmand
 `)
 
 	cmd := exec.Command("go", "vet", "./emails")

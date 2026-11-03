@@ -34,8 +34,8 @@ func TestUpgradePresentationRestoresProgressiveHumanOutput(t *testing.T) {
 		FilesReplaced:       2,
 		ReplacedFiles:       []string{"pkg/anduin/router.go", "pkg/anduin/server.go"},
 		ToolsUpdated:        1,
-		UpdatedTools:        []string{"templ: v0.3.1020"},
-		ToolMetadataChanges: []string{"templ metadata"},
+		UpdatedTools:        []string{"goose: v3.27.1"},
+		ToolMetadataChanges: []string{"goose metadata"},
 	}
 
 	var output bytes.Buffer
@@ -200,7 +200,7 @@ func TestUpgradePresentationRemovalAndNoOpBranches(t *testing.T) {
 		ToVersion:     "v1.0.1",
 		DirtyWorktree: true,
 		RemovedFiles:  []string{"internal/example/obsolete.go"},
-		AddedTools:    []string{"templ: v0.3.1020"},
+		AddedTools:    []string{"goose: v3.27.1"},
 	}
 	output.Reset()
 	printUpgradeDryRun(&output, report)
@@ -225,7 +225,7 @@ func TestUpgradePresentationStopsAfterWriterFailure(t *testing.T) {
 		FromVersion:   "v1.0.0",
 		ToVersion:     "v1.0.1",
 		ReplacedFiles: []string{"pkg/anduin/server.go"},
-		UpdatedTools:  []string{"templ: v0.3.1020"},
+		UpdatedTools:  []string{"goose: v3.27.1"},
 	})
 
 	if writer.writes != 1 {
@@ -399,10 +399,6 @@ func TestSyncToolsToFrameworkVersion_PreservesNonFrameworkTools(t *testing.T) {
 		lock: &layout.AndurelLock{
 			Version: "v0.1.0",
 			Tools: map[string]*layout.Tool{
-				"templ": {
-					Source:  "github.com/a-h/templ",
-					Version: "v0.3.900",
-				},
 				"my-custom-tool": {
 					Source:  "github.com/acme/my-custom-tool",
 					Version: "v1.2.3",
@@ -442,8 +438,8 @@ func TestSyncToolsToFrameworkVersion_PrefersHigherExistingVersion(t *testing.T) 
 		lock: &layout.AndurelLock{
 			Version: "v0.1.0",
 			Tools: map[string]*layout.Tool{
-				"templ": {
-					Source:  "github.com/a-h/templ",
+				"goose": {
+					Source:  "github.com/pressly/goose",
 					Version: "v99.0.0",
 				},
 			},
@@ -458,14 +454,14 @@ func TestSyncToolsToFrameworkVersion_PrefersHigherExistingVersion(t *testing.T) 
 		t.Fatalf("syncTools returned error: %v", err)
 	}
 
-	if got := upgrader.lock.Tools["templ"].Version; got != "v99.0.0" {
-		t.Fatalf("expected existing higher templ version to be preserved, got %s", got)
+	if got := upgrader.lock.Tools["goose"].Version; got != "v99.0.0" {
+		t.Fatalf("expected existing higher goose version to be preserved, got %s", got)
 	}
 
 	for _, updated := range result.Updated {
-		if strings.HasPrefix(updated, "templ:") {
+		if strings.HasPrefix(updated, "goose:") {
 			t.Fatalf(
-				"templ should not be updated when existing version is higher, got update: %s",
+				"goose should not be updated when existing version is higher, got update: %s",
 				updated,
 			)
 		}
@@ -490,8 +486,8 @@ func TestSyncToolsToFrameworkVersion_InitializesMissingToolsMap(t *testing.T) {
 	if upgrader.lock.Tools == nil {
 		t.Fatal("expected tools map to be initialized")
 	}
-	if _, ok := upgrader.lock.Tools["templ"]; !ok {
-		t.Fatal("expected templ to be added to missing tools map")
+	if _, ok := upgrader.lock.Tools["goose"]; !ok {
+		t.Fatal("expected goose to be added to missing tools map")
 	}
 	if _, ok := upgrader.lock.Tools["tailwindcli"]; !ok {
 		t.Fatal("expected tailwindcli to be added for tailwind projects")
@@ -715,27 +711,27 @@ func TestSyncToolsToFrameworkVersion_UpdatesBuiltToolPathAndVersion(t *testing.T
 		lock: &layout.AndurelLock{
 			Version: "v0.1.0",
 			Tools: map[string]*layout.Tool{
-				"templ": layout.NewBuiltTool("cmd/old-templ/main.go", "v0.0.1"),
+				"goose": layout.NewBuiltTool("cmd/old-goose/main.go", "v0.0.1"),
 			},
 			ScaffoldConfig: &layout.ScaffoldConfig{ProjectName: "myapp"},
 		},
 	}
-	expected := layout.GetExpectedTools(upgrader.lock.ScaffoldConfig)["templ"]
+	expected := layout.GetExpectedTools(upgrader.lock.ScaffoldConfig)["goose"]
 
 	result, err := syncTools(upgrader.lock)
 	if err != nil {
 		t.Fatalf("syncTools returned error: %v", err)
 	}
 
-	templ := upgrader.lock.Tools["templ"]
-	if templ.Path != expected.Path {
-		t.Fatalf("templ path = %q, want %q", templ.Path, expected.Path)
+	goose := upgrader.lock.Tools["goose"]
+	if goose.Path != expected.Path {
+		t.Fatalf("goose path = %q, want %q", goose.Path, expected.Path)
 	}
-	if templ.Version != expected.Version {
-		t.Fatalf("templ version = %q, want %q", templ.Version, expected.Version)
+	if goose.Version != expected.Version {
+		t.Fatalf("goose version = %q, want %q", goose.Version, expected.Version)
 	}
-	if templ.Download == nil {
-		t.Fatal("expected legacy path-based templ to gain download metadata")
+	if goose.Download == nil {
+		t.Fatal("expected legacy path-based goose to gain download metadata")
 	}
 	if len(result.Updated) == 0 {
 		t.Fatal("expected built tool update to be reported")
@@ -745,12 +741,12 @@ func TestSyncToolsToFrameworkVersion_UpdatesBuiltToolPathAndVersion(t *testing.T
 func TestSyncToolsToFrameworkVersion_RefreshesMetadataWithoutVersionChange(t *testing.T) {
 	t.Parallel()
 
-	expected := layout.GetExpectedTools(&layout.ScaffoldConfig{ProjectName: "myapp"})["templ"]
+	expected := layout.GetExpectedTools(&layout.ScaffoldConfig{ProjectName: "myapp"})["goose"]
 	upgrader := &Upgrader{
 		lock: &layout.AndurelLock{
 			Version: "v0.1.0",
 			Tools: map[string]*layout.Tool{
-				"templ": {
+				"goose": {
 					Version: expected.Version,
 					Source:  "stale/source",
 				},
@@ -764,18 +760,18 @@ func TestSyncToolsToFrameworkVersion_RefreshesMetadataWithoutVersionChange(t *te
 		t.Fatalf("syncTools returned error: %v", err)
 	}
 
-	templ := upgrader.lock.Tools["templ"]
-	if templ.Source != expected.Source {
-		t.Fatalf("templ source = %q, want %q", templ.Source, expected.Source)
+	goose := upgrader.lock.Tools["goose"]
+	if goose.Source != expected.Source {
+		t.Fatalf("goose source = %q, want %q", goose.Source, expected.Source)
 	}
-	if templ.Download == nil {
+	if goose.Download == nil {
 		t.Fatal("expected missing download metadata to be restored")
 	}
-	if templ.VersionCheck == nil {
+	if goose.VersionCheck == nil {
 		t.Fatal("expected missing version check metadata to be restored")
 	}
 	for _, updated := range result.Updated {
-		if strings.HasPrefix(updated, "templ:") {
+		if strings.HasPrefix(updated, "goose:") {
 			t.Fatalf(
 				"metadata-only refresh should not be reported as version update: %v",
 				result.Updated,
@@ -837,12 +833,12 @@ func TestSyncToolsToFrameworkVersion_RefreshesStaleDownloadURLTemplate(t *testin
 func TestSyncToolsToFrameworkVersion_RemovesOnlyRedundantDefaultRegexp(t *testing.T) {
 	t.Parallel()
 
-	expected := layout.GetExpectedTools(&layout.ScaffoldConfig{ProjectName: "myapp"})["templ"]
+	expected := layout.GetExpectedTools(&layout.ScaffoldConfig{ProjectName: "myapp"})["goose"]
 	upgrader := &Upgrader{
 		lock: &layout.AndurelLock{
 			Version: "v1.0.0",
 			Tools: map[string]*layout.Tool{
-				"templ": {
+				"goose": {
 					Version:  expected.Version,
 					Source:   expected.Source,
 					Download: expected.Download,
@@ -860,19 +856,19 @@ func TestSyncToolsToFrameworkVersion_RemovesOnlyRedundantDefaultRegexp(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := upgrader.lock.Tools["templ"].VersionCheck.Regexp; got != "" {
+	if got := upgrader.lock.Tools["goose"].VersionCheck.Regexp; got != "" {
 		t.Fatalf("redundant regexp was not removed: %q", got)
 	}
-	if !slices.Contains(result.Metadata, "templ metadata") {
+	if !slices.Contains(result.Metadata, "goose metadata") {
 		t.Fatalf("metadata changes = %v", result.Metadata)
 	}
 
-	const customRegexp = `templ version ([0-9.]+)`
-	upgrader.lock.Tools["templ"].VersionCheck.Regexp = customRegexp
+	const customRegexp = `goose version ([0-9.]+)`
+	upgrader.lock.Tools["goose"].VersionCheck.Regexp = customRegexp
 	if _, err := syncTools(upgrader.lock); err != nil {
 		t.Fatal(err)
 	}
-	if got := upgrader.lock.Tools["templ"].VersionCheck.Regexp; got != customRegexp {
+	if got := upgrader.lock.Tools["goose"].VersionCheck.Regexp; got != customRegexp {
 		t.Fatalf("custom regexp changed to %q", got)
 	}
 }
@@ -926,11 +922,9 @@ func TestExecuteDryRun_ReportsRenderedFilesAndTools(t *testing.T) {
 			report.ReplacedFiles,
 		)
 	}
-	if !slices.Contains(report.RemovedTools, "run") {
-		t.Fatalf("removed tools = %v, want run", report.RemovedTools)
-	}
-	if report.ToolsUpdated == 0 {
-		t.Fatal("expected stale templ tool to be reported as updated")
+	if !slices.Contains(report.RemovedTools, "run") ||
+		!slices.Contains(report.RemovedTools, "templ") {
+		t.Fatalf("removed tools = %v, want run and templ", report.RemovedTools)
 	}
 	persisted, err := layout.ReadLockFile(projectRoot)
 	if err != nil {

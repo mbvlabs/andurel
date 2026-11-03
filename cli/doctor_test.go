@@ -28,7 +28,7 @@ func TestDoctorBuildReportSummaryHintsAndDetails(t *testing.T) {
 			category: "configuration",
 			status:   statusWarn,
 			message:  "1 missing",
-			details:  []string{"templ: missing"},
+			details:  []string{"goose: missing"},
 		},
 		{name: "go vet", category: "code_quality", status: statusFail, message: "2 issues"},
 	}
@@ -48,12 +48,12 @@ func TestDoctorBuildReportSummaryHintsAndDetails(t *testing.T) {
 	if !strings.Contains(report.Checks[1].Hint, "tool sync") {
 		t.Fatalf("expected tool sync hint, got %#v", report.Checks[1])
 	}
-	if !reflect.DeepEqual(report.Checks[1].Details, []string{"templ: missing"}) {
+	if !reflect.DeepEqual(report.Checks[1].Details, []string{"goose: missing"}) {
 		t.Fatalf("details were not copied: %#v", report.Checks[1].Details)
 	}
 
 	results[1].details[0] = "mutated"
-	if report.Checks[1].Details[0] != "templ: missing" {
+	if report.Checks[1].Details[0] != "goose: missing" {
 		t.Fatalf("doctorCheck details should be copied, got %#v", report.Checks[1].Details)
 	}
 }
@@ -103,8 +103,8 @@ func TestDoctorVersionHelpers(t *testing.T) {
 		t.Fatalf("empty versions should not match")
 	}
 
-	output := "templ version v0.3.1\nUpdate available: v0.9.0\n"
-	if got, want := extractVersion(output), "v0.3.1"; got != want {
+	output := "goose version v3.27.1\nUpdate available: v9.9.9\n"
+	if got, want := extractVersion(output), "v3.27.1"; got != want {
 		t.Fatalf("extractVersion = %q, want %q", got, want)
 	}
 	if got := extractVersion("Update available: v9.9.9\n"); got != "v9.9.9" {
@@ -141,7 +141,7 @@ func TestDoctorLockAndVersionChecks(t *testing.T) {
 	}
 
 	lock := layout.NewAndurelLock("v1.2.3")
-	lock.Tools["templ"] = validTestTool("templ", "v0.3.1")
+	lock.Tools["goose"] = validTestTool("goose", "v3.27.1")
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
 	}
@@ -199,7 +199,6 @@ func TestRunDoctorStructuredPassAndFail(t *testing.T) {
 	root := t.TempDir()
 	writeGoModule(t, root)
 	writeTestFile(t, root, "main.go", "package main\n\nfunc main() {}\n")
-	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nexit 0\n")
 	lock := layout.NewAndurelLock("v1.2.3")
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
@@ -316,27 +315,6 @@ func TestDoctorGoVetAndTidyChecks(t *testing.T) {
 	}
 }
 
-func TestDoctorTemplGenerateChecks(t *testing.T) {
-	root := t.TempDir()
-
-	warn := checkTemplGenerate(root, false)
-	if warn.status != statusWarn || !strings.Contains(warn.message, "templ binary not found") {
-		t.Fatalf("missing templ check = %#v", warn)
-	}
-
-	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nexit 0\n")
-	pass := checkTemplGenerate(root, false)
-	if pass.status != statusPass {
-		t.Fatalf("templ pass check = %#v", pass)
-	}
-
-	writeExecutable(t, root, "bin/templ", "#!/bin/sh\necho broken >&2\nexit 1\n")
-	fail := checkTemplGenerate(root, true)
-	if fail.status != statusFail || !strings.Contains(fail.details[0], "broken") {
-		t.Fatalf("templ failure check = %#v", fail)
-	}
-}
-
 func TestDoctorVersionCommandHelpers(t *testing.T) {
 	root := t.TempDir()
 	writeGoModule(t, root)
@@ -411,7 +389,6 @@ func TestDoctorCollectReportAndCodeGenerationChecks(t *testing.T) {
 	root := t.TempDir()
 	writeGoModule(t, root)
 	writeTestFile(t, root, "main.go", "package main\n\nfunc main() {}\n")
-	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nexit 0\n")
 	lock := layout.NewAndurelLock("v1.2.3")
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
@@ -438,10 +415,9 @@ func TestDoctorCollectReportAndCodeGenerationChecks(t *testing.T) {
 	if got := codeGenerationChecks(
 		root,
 		false,
-	); len(got) != 3 ||
-		got[0].name != "templ generate" || got[0].status != statusPass ||
-		got[1].name != "emails export" || got[1].status != statusPass ||
-		got[2].name != "narsilc generate" || got[2].status != statusPass {
+	); len(got) != 2 ||
+		got[0].name != "emails export" || got[0].status != statusPass ||
+		got[1].name != "narsilc generate" || got[1].status != statusPass {
 		t.Fatalf("codeGenerationChecks = %#v", got)
 	}
 
@@ -513,6 +489,7 @@ func TestRunDoctorHumanPassWarnAndProjectFailure(t *testing.T) {
 	writeGoModule(t, root)
 	writeTestFile(t, root, "main.go", "package main\n\nfunc main() {}\n")
 	lock := layout.NewAndurelLock("v1.2.3")
+	lock.Tools["goose"] = validTestTool("goose", "v3.27.1")
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
 	}
@@ -527,7 +504,7 @@ func TestRunDoctorHumanPassWarnAndProjectFailure(t *testing.T) {
 		findGoModRoot = originalFindGoModRoot
 	})
 
-	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nexit 0\n")
+	writeExecutable(t, root, "bin/goose", "#!/bin/sh\necho goose v3.27.1\n")
 	newDoctorCmd := func() (*cobra.Command, *bytes.Buffer) {
 		cmd := &cobra.Command{Use: "doctor"}
 		output.RegisterPersistentFlags(cmd)
@@ -544,8 +521,8 @@ func TestRunDoctorHumanPassWarnAndProjectFailure(t *testing.T) {
 		t.Fatalf("expected pass summary, got:\n%s", out)
 	}
 
-	if err := os.Remove(filepath.Join(root, "bin", "templ")); err != nil {
-		t.Fatalf("remove templ: %v", err)
+	if err := os.Remove(filepath.Join(root, "bin", "goose")); err != nil {
+		t.Fatalf("remove goose: %v", err)
 	}
 	doctorCmd, doctorOut = newDoctorCmd()
 	if err := runDoctor(doctorCmd, "1.2.3", false); err != nil {
@@ -602,12 +579,12 @@ func TestRunDoctorHumanFailureSummary(t *testing.T) {
 func TestDoctorToolVersionMismatchesAndUnknowns(t *testing.T) {
 	root := t.TempDir()
 	writeGoModule(t, root)
-	writeExecutable(t, root, "bin/templ", "#!/bin/sh\necho templ v0.1.0\n")
+	writeExecutable(t, root, "bin/usql", "#!/bin/sh\necho usql v0.1.0\n")
 	writeExecutable(t, root, "bin/goose", "#!/bin/sh\necho no version here\n")
 	lock := layout.NewAndurelLock("v1.2.3")
-	lock.Tools["templ"] = &layout.Tool{
+	lock.Tools["usql"] = &layout.Tool{
 		Version:      "v9.9.9",
-		Path:         "bin/templ",
+		Path:         "bin/usql",
 		VersionCheck: &layout.VersionCheck{Args: []string{"--version"}},
 	}
 	lock.Tools["goose"] = &layout.Tool{

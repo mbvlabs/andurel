@@ -40,11 +40,11 @@ var andurelPackageResponsibilities = map[string]string{
 	"anduin":     "HTTP router, middleware, handlers, host dispatch, and server primitives",
 	"auth":       "Password hashing and authentication token primitives",
 	"cache":      "Cache store abstraction and swappable drivers",
-	"email":      "Email composition, providers, and delivery",
 	"env":        ".env loading and typed environment-variable reads",
 	"inertia":    "Inertia protocol renderer, SSR client and runtime, and error mapping",
 	"kiks":       "Cookies, sessions, and flash messages",
 	"lifecycle":  "Process startup, shutdown, signals, and blocking-serve coordination",
+	"postmand":   "Email composition, providers, delivery, and template rendering",
 	"routing":    "Route definitions, URL generation, parameters, and host resolution",
 	"storage":    "Database access (PostgreSQL), queue insertion, migrations, and transactions",
 	"telemetry":  "Tracing, logging, and HTTP telemetry handlers",
@@ -78,7 +78,7 @@ replace directive are reported and left unchanged.`,
   andurel packages list --json
   andurel packages update --dry-run
   andurel packages update
-  andurel packages update storage email`,
+  andurel packages update storage postmand`,
 	}
 	setAgentMetadata(
 		cmd,
@@ -120,7 +120,7 @@ func newPackagesUpdateCommand() *cobra.Command {
 		Long: `Update github.com/mbvlabs/andurel/pkg/* modules already required in go.mod
 to the latest versions published on proxy.golang.org.
 
-Pass package names (storage, email, inertia, ...) or full module paths to
+Pass package names (storage, postmand, inertia, ...) or full module paths to
 limit the update. With no arguments, every required Andurel package is
 considered.
 

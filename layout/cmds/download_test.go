@@ -84,18 +84,6 @@ func TestToolDownloaderReleaseURLs(t *testing.T) {
 			wantArchive: "tar.gz",
 		},
 		{
-			name: "templ",
-			downloader: ToolDownloader{
-				Name:    "templ",
-				Module:  "github.com/a-h/templ/cmd/templ",
-				Version: "v0.1.0",
-			},
-			goos:        "linux",
-			goarch:      "amd64",
-			wantURLPart: "templ_Linux_x86_64.tar.gz",
-			wantArchive: "tar.gz",
-		},
-		{
 			name: "goose",
 			downloader: ToolDownloader{
 				Name:    "goose",
@@ -292,25 +280,25 @@ func TestDownloadGoToolAndTailwindUseResolvedAssets(t *testing.T) {
 	downloadVerifiedFunc = func(name, sourceURL, archiveType, binaryName, destPath, digest string) error {
 		downloadedURLs = append(downloadedURLs, sourceURL)
 		if archiveType == "tar.gz" {
-			return os.WriteFile(destPath, []byte("templ binary"), 0o755)
+			return os.WriteFile(destPath, []byte("archive binary"), 0o755)
 		}
 		return os.WriteFile(destPath, []byte("plain binary"), 0o644)
 	}
 
 	tmpDir := t.TempDir()
-	templDest := filepath.Join(tmpDir, "templ")
+	gooseDest := filepath.Join(tmpDir, "goose")
 	if err := DownloadVerifiedGoTool(
-		"templ",
-		"github.com/a-h/templ/cmd/templ",
-		"v0.3.0",
+		"goose",
+		"github.com/pressly/goose/v3/cmd/goose",
+		"v3.27.1",
 		"linux",
 		"amd64",
-		templDest,
+		gooseDest,
 		strings.Repeat("1", 64),
 	); err != nil {
-		t.Fatalf("DownloadGoTool templ: %v", err)
+		t.Fatalf("DownloadGoTool goose: %v", err)
 	}
-	assertFileContent(t, templDest, "templ binary")
+	assertFileContent(t, gooseDest, "plain binary")
 
 	tailwindDest := filepath.Join(tmpDir, "tailwindcli")
 	if err := DownloadVerifiedTailwindCLI(
@@ -325,7 +313,7 @@ func TestDownloadGoToolAndTailwindUseResolvedAssets(t *testing.T) {
 	assertFileContent(t, tailwindDest, "plain binary")
 
 	if len(downloadedURLs) != 2 ||
-		!strings.Contains(downloadedURLs[0], "templ_Linux_x86_64.tar.gz") ||
+		!strings.Contains(downloadedURLs[0], "goose_linux_x86_64") ||
 		!strings.Contains(downloadedURLs[1], "tailwindcss-macos-x64") {
 		t.Fatalf("unexpected downloaded URLs: %#v", downloadedURLs)
 	}
@@ -360,12 +348,12 @@ func TestDownloadGoToolAndTailwindUseResolvedAssets(t *testing.T) {
 
 func TestUnverifiedDownloadWrappersRejectMissingDigest(t *testing.T) {
 	if err := DownloadGoTool(
-		"templ",
-		"github.com/a-h/templ/cmd/templ",
-		"v0.3.0",
+		"goose",
+		"github.com/pressly/goose/v3/cmd/goose",
+		"v3.27.1",
 		"linux",
 		"amd64",
-		filepath.Join(t.TempDir(), "templ"),
+		filepath.Join(t.TempDir(), "goose"),
 	); err == nil ||
 		!strings.Contains(err.Error(), "valid SHA-256 digest is required") {
 		t.Fatalf("DownloadGoTool error = %v", err)

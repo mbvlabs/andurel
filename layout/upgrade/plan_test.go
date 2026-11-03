@@ -56,7 +56,7 @@ func TestAddVerifiedPackageDependenciesPinsRequiredModules(t *testing.T) {
 go 1.27.1
 
 require (
-	github.com/mbvlabs/andurel/pkg/email v0.9.0
+	github.com/mbvlabs/andurel/pkg/postmand v0.9.0
 	github.com/mbvlabs/andurel/pkg/storage v0.6.0
 )
 `))
@@ -76,8 +76,8 @@ require (
 	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/storage "+versions.Storage) {
 		t.Fatalf("storage was not pinned:\n%s", goMod)
 	}
-	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/email v0.9.0") {
-		t.Fatalf("newer email pin was downgraded:\n%s", goMod)
+	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/postmand v0.9.0") {
+		t.Fatalf("newer postmand pin was downgraded:\n%s", goMod)
 	}
 	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/inertia "+versions.Inertia) {
 		t.Fatalf("missing Inertia dependency was not added:\n%s", goMod)
@@ -87,6 +87,32 @@ require (
 	}
 	if strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/routing") {
 		t.Fatalf("unrequired package was added:\n%s", goMod)
+	}
+}
+
+func TestAddVerifiedPackageDependenciesDropsRemovedTemplTool(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	mustWriteTestFile(t, root, "go.mod", []byte(
+		"module testapp\n\ngo 1.27.1\n\nrequire github.com/mbvlabs/andurel/pkg/telemetry "+
+			versions.Telemetry+"\n\ntool (\n\tgithub.com/a-h/templ/cmd/templ\n\tgithub.com/segmentio/golines\n)\n",
+	))
+
+	plan := &upgradePlan{}
+	upgrader := &Upgrader{projectRoot: root}
+	if err := upgrader.addVerifiedPackageDependencies(plan, &layout.ScaffoldConfig{}); err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.files) != 1 || plan.files[0].path != "go.mod" {
+		t.Fatalf("planned files = %#v", plan.files)
+	}
+	goMod := string(plan.files[0].after)
+	if strings.Contains(goMod, "a-h/templ") {
+		t.Fatalf("templ tool directive was not removed:\n%s", goMod)
+	}
+	if !strings.Contains(goMod, "tool (") {
+		t.Fatalf("unrelated tool directives must survive:\n%s", goMod)
 	}
 }
 

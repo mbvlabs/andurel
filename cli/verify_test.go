@@ -92,7 +92,6 @@ func TestVerifyReportsOK(t *testing.T) {
 	}
 
 	root := newVerifyTestProject(t)
-	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nexit 0\n")
 	writeExecutable(t, root, "bin/narsilc", "#!/bin/sh\nexit 0\n")
 
 	result := runVerifyInProject(t, root, "verify", "--json")
@@ -134,10 +133,9 @@ func TestVerifyReportsGeneratedFailure(t *testing.T) {
 	writeExecutable(
 		t,
 		root,
-		"bin/templ",
+		"bin/narsilc",
 		"#!/bin/sh\nprintf 'package drift\\n' > generated_drift.go\n",
 	)
-	writeExecutable(t, root, "bin/narsilc", "#!/bin/sh\nexit 0\n")
 
 	result := runVerifyInProject(t, root, "verify", "--json")
 	assertVerifyExitCode(t, result, output.ExitVerification)
@@ -180,10 +178,10 @@ func TestVerifyReportsMissingTools(t *testing.T) {
 	if setup.Status != verifyStatusFail || setup.OK {
 		t.Fatalf("setup step = %#v, want status fail and ok false", setup)
 	}
-	if len(setup.Violations) != 2 {
-		t.Fatalf("setup violations = %#v, want templ and narsilc", setup.Violations)
+	if len(setup.Violations) != 1 {
+		t.Fatalf("setup violations = %#v, want narsilc", setup.Violations)
 	}
-	for _, binary := range []string{"templ", "narsilc"} {
+	for _, binary := range []string{"narsilc"} {
 		violation, found := findMissingToolViolation(setup.Violations, binary)
 		if !found {
 			t.Fatalf("missing missing-tool violation for %s: %#v", binary, setup.Violations)
@@ -216,7 +214,6 @@ func TestVerifyDoesNotRunTestsWithoutWithTests(t *testing.T) {
 	}
 
 	root := newVerifyTestProject(t)
-	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nexit 0\n")
 	writeExecutable(t, root, "bin/narsilc", "#!/bin/sh\nexit 0\n")
 	writeTestFile(t, root, "broken/broken_test.go", `package broken
 
@@ -869,7 +866,6 @@ func TestVerifyScopesGoChecksToPackages(t *testing.T) {
 	}
 
 	root := newVerifyTestProject(t)
-	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nexit 0\n")
 	writeExecutable(t, root, "bin/narsilc", "#!/bin/sh\nexit 0\n")
 	writeTestFile(t, root, "alpha/alpha.go", "package alpha\n")
 	writeTestFile(t, root, "beta/beta.go", "package beta\n\nfunc  Broken() {}\n")
@@ -1000,17 +996,6 @@ func TestVerifyFrontendWithoutTypecheckIsSkipped(t *testing.T) {
 }
 
 func TestGeneratedViolationsNameSourceFiles(t *testing.T) {
-	templ := generatedViolations(checkResult{
-		name:    "templ generate",
-		status:  statusFail,
-		message: "generated templates are out of date",
-		changed: []string{"handlers/pages_templ.go"},
-	})
-	if len(templ) != 1 || templ[0].File != "handlers/pages.templ" ||
-		templ[0].Fix != "andurel build" {
-		t.Fatalf("templ violations = %#v, want handlers/pages.templ", templ)
-	}
-
 	email := generatedViolations(checkResult{
 		name:    "emails export",
 		status:  statusFail,
@@ -1068,8 +1053,7 @@ func TestVerifyScopedGeneratedDriftIgnoresOtherPackages(t *testing.T) {
 	writeTestFile(t, root, "alpha/alpha.go", "package alpha\n")
 	writeTestFile(t, root, "beta/beta.go", "package beta\n")
 	// Drift lands in beta, which is outside the requested scope.
-	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nprintf 'package beta\\n' > beta/drift.go\n")
-	writeExecutable(t, root, "bin/narsilc", "#!/bin/sh\nexit 0\n")
+	writeExecutable(t, root, "bin/narsilc", "#!/bin/sh\nprintf 'package beta\\n' > beta/drift.go\n")
 
 	result := runVerifyInProject(t, root, "verify", "./alpha/...", "--json")
 	if result.err != nil {
@@ -1093,8 +1077,7 @@ func TestVerifyScopedGeneratedDriftInScopeFailsWithOnlyHint(t *testing.T) {
 
 	root := newVerifyTestProject(t)
 	writeTestFile(t, root, "alpha/alpha.go", "package alpha\n")
-	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nprintf 'package alpha\\n' > alpha/drift.go\n")
-	writeExecutable(t, root, "bin/narsilc", "#!/bin/sh\nexit 0\n")
+	writeExecutable(t, root, "bin/narsilc", "#!/bin/sh\nprintf 'package alpha\\n' > alpha/drift.go\n")
 
 	result := runVerifyInProject(t, root, "verify", "./alpha/...", "--json")
 	assertVerifyExitCode(t, result, output.ExitVerification)
@@ -1142,7 +1125,6 @@ func TestVerifyRunsIndependentStagesAfterFailure(t *testing.T) {
 	// stage must still run and pass rather than being skipped by them.
 	writeTestFile(t, root, "unfmt.go", "package main\nfunc  unf(){}\n")
 	writeTestFile(t, root, "broken.go", "package main\n\nfunc broken() { var x int = \"s\"; _ = x }\n")
-	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nexit 0\n")
 	writeExecutable(t, root, "bin/narsilc", "#!/bin/sh\nexit 0\n")
 
 	result := runVerifyInProject(t, root, "verify", "--json")

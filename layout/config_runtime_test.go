@@ -41,7 +41,7 @@ require (
 		t.Fatal(err)
 	}
 	for _, name := range []string{
-		"anduin", "cache", "env", "inertia", "routing", "storage", "telemetry", "validation",
+		"anduin", "cache", "env", "inertia", "postmand", "routing", "storage", "telemetry", "validation",
 	} {
 		path, err := filepath.Abs(filepath.Join("..", "pkg", name))
 		if err != nil {

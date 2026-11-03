@@ -246,7 +246,7 @@ func TestSetVersionNarsilcRuntimeReportMatrix(t *testing.T) {
 		},
 		{
 			name:        "unrelated tool leaves narsilc alone",
-			tool:        "templ",
+			tool:        "goose",
 			toolVersion: "v4.0.0",
 			goMod:       "module example.com/app\n\ngo 1.27.3\n\nrequire github.com/mbvlabs/narsilc v0.6.3\n",
 			wantStatus:  "",

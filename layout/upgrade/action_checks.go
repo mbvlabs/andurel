@@ -1,7 +1,17 @@
 package upgrade
 
 import (
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+
 	"golang.org/x/mod/semver"
+)
+
+const (
+	legacyEmailModulePath = "github.com/mbvlabs/andurel/pkg/email"
+	postmandModulePath    = "github.com/mbvlabs/andurel/pkg/postmand"
 )
 
 // ActionStatus is the static detector's verdict for one manual upgrade action.
@@ -45,7 +55,87 @@ type manualActionDetector struct {
 // manualActionDetectors is ordered like the upgrade notes. Every action that
 // manualActionsForUpgrade can emit has an entry; TestManualActionDetectorsCoverEveryAction
 // fails when a new action is added without one.
-var manualActionDetectors = []manualActionDetector{}
+var manualActionDetectors = []manualActionDetector{
+	{
+		id:          templRootActionID,
+		version:     rcOneBreakingVersion,
+		inertiaOnly: true,
+		detect: func(files projectSources) (ActionStatus, string) {
+			for _, rel := range []string{"resources/root.templ", "resources/root_templ.go"} {
+				if files.exists(rel) {
+					return ActionNotApplied, "legacy compiled templ root remains at " + rel
+				}
+			}
+			if files.exists("resources/root.html") && files.exists("resources/root.go") {
+				return ActionApplied, "found resources/root.html and resources/root.go"
+			}
+			return ActionNotApplicable, "project has no legacy compiled templ root"
+		},
+	},
+	{
+		id:      postmandMigrationActionID,
+		version: rcOneBreakingVersion,
+		detect: func(files projectSources) (ActionStatus, string) {
+			goMod, hasGoMod := files.read("go.mod")
+			if hasGoMod && strings.Contains(goMod, legacyEmailModulePath) {
+				return ActionNotApplied, "go.mod still requires " + legacyEmailModulePath
+			}
+			if where, found := files.firstContaining(
+				[]string{"."},
+				[]string{".go"},
+				legacyEmailModulePath,
+			); found {
+				return ActionNotApplied, "legacy pkg/email import remains in " + where
+			}
+			if hasGoMod && strings.Contains(goMod, postmandModulePath) {
+				return ActionApplied, "go.mod requires " + postmandModulePath
+			}
+			return ActionNotApplicable, "project does not use pkg/email"
+		},
+	},
+}
+
+// filterManualActionsForProject keeps only notices whose application-owned
+// change is actually present in the project. A notice for a legacy templ root
+// or pkg/email disappears once the application has migrated, so an upgrade of
+// a fresh rc.1 project reports no stale actions. Actions without a detector are
+// kept: a future notice must opt out explicitly, not vanish silently.
+func filterManualActionsForProject(root string, actions []ManualAction) []ManualAction {
+	files := projectSources{root: root}
+	detectors := make(map[string]manualActionDetector, len(manualActionDetectors))
+	for _, detector := range manualActionDetectors {
+		detectors[detector.id] = detector
+	}
+
+	filtered := make([]ManualAction, 0, len(actions))
+	for _, action := range actions {
+		detector, ok := detectors[action.ID]
+		if !ok {
+			filtered = append(filtered, action)
+			continue
+		}
+		if status, _ := detector.detect(files); status == ActionNotApplied {
+			filtered = append(filtered, action)
+		}
+	}
+	return filtered
+}
+
+// mergeManualActions appends extra notices that base does not already carry.
+// Matching by stable ID keeps the version-gated order and prevents a project
+// that crosses rc.1 from printing the same action twice.
+func mergeManualActions(base, extra []ManualAction) []ManualAction {
+	merged := slices.Clone(base)
+	for _, action := range extra {
+		if slices.ContainsFunc(merged, func(existing ManualAction) bool {
+			return existing.ID == action.ID
+		}) {
+			continue
+		}
+		merged = append(merged, action)
+	}
+	return merged
+}
 
 // CheckManualActions statically checks the manual actions that apply to a
 // project at projectVersion, plus actions between projectVersion and
@@ -107,4 +197,95 @@ func CheckManualActions(
 // read-only and tolerate missing files: an absent file is simply no marker.
 type projectSources struct {
 	root string
+}
+
+func (s projectSources) read(rel string) (string, bool) {
+	data, err := os.ReadFile(filepath.Join(s.root, filepath.FromSlash(rel)))
+	if err != nil {
+		return "", false
+	}
+	return string(data), true
+}
+
+func (s projectSources) exists(rel string) bool {
+	_, err := os.Stat(filepath.Join(s.root, filepath.FromSlash(rel)))
+	return err == nil
+}
+
+// firstContaining walks roots and returns the project-relative path of the
+// first matching file. A root may be a directory or a single file.
+func (s projectSources) firstContaining(
+	roots []string,
+	extensions []string,
+	markers ...string,
+) (string, bool) {
+	for _, root := range roots {
+		path := filepath.Join(s.root, filepath.FromSlash(root))
+		info, err := os.Stat(path)
+		if err != nil {
+			continue
+		}
+		if !info.IsDir() {
+			if !hasExtension(root, extensions) {
+				continue
+			}
+			if text, ok := s.read(root); ok && containsMarker(text, markers...) {
+				return root, true
+			}
+			continue
+		}
+
+		found := ""
+		_ = filepath.WalkDir(path, func(candidate string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return nil
+			}
+			if entry.IsDir() {
+				switch entry.Name() {
+				case ".git", "node_modules", "vendor", "assets":
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if !hasExtension(entry.Name(), extensions) {
+				return nil
+			}
+			data, readErr := os.ReadFile(candidate)
+			if readErr != nil {
+				return nil
+			}
+			if !containsMarker(string(data), markers...) {
+				return nil
+			}
+			rel, relErr := filepath.Rel(s.root, candidate)
+			if relErr != nil {
+				found = candidate
+			} else {
+				found = filepath.ToSlash(rel)
+			}
+			return filepath.SkipAll
+		})
+		if found != "" {
+			return found, true
+		}
+	}
+	return "", false
+}
+
+func containsMarker(text string, markers ...string) bool {
+	for _, marker := range markers {
+		if strings.Contains(text, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasExtension(name string, extensions []string) bool {
+	for _, extension := range extensions {
+		if strings.HasSuffix(name, extension) {
+			return true
+		}
+	}
+	return false
 }

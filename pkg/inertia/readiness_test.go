@@ -40,7 +40,7 @@ func readinessRenderer(t *testing.T, ssrURL string, options ...Option) *Renderer
 	}
 
 	var captured RootData
-	base := []Option{WithRoot(testRoot(&captured)), WithSSRRenderer(ssrClient)}
+	base := []Option{WithRootFunc(testRoot(&captured)), WithSSRRenderer(ssrClient)}
 	renderer, err := newTestRenderer(append(base, options...)...)
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
@@ -132,7 +132,7 @@ func TestReadinessBoundsTheHealthProbe(t *testing.T) {
 	}
 	var captured RootData
 	renderer, err := newTestRenderer(
-		WithRoot(testRoot(&captured)),
+		WithRootFunc(testRoot(&captured)),
 		WithSSRRenderer(ssrClient),
 		WithSSRDefault(true),
 		WithSSRFailFast(true),
@@ -173,7 +173,7 @@ func TestReadinessPropagatesCancellation(t *testing.T) {
 func TestReadinessIsUnsupportedForDevelopmentViteTransport(t *testing.T) {
 	var captured RootData
 	renderer, err := newTestRenderer(
-		WithRoot(testRoot(&captured)),
+		WithRootFunc(testRoot(&captured)),
 		WithEnvironment("development"),
 		WithSSRDefault(true),
 		WithSSRFailFast(true),

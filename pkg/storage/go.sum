@@ -77,8 +77,8 @@ github.com/magiconair/properties v1.8.10 h1:s31yESBquKXCV9a/ScB3ESkOjUYYv+X0rg8S
 github.com/magiconair/properties v1.8.10/go.mod h1:Dhd985XPs7jluiymwWYZ0G4Z61jb3vdS329zhj2hYo0=
 github.com/mattn/go-isatty v0.0.21 h1:xYae+lCNBP7QuW4PUnNG61ffM4hVIfm+zUzDuSzYLGs=
 github.com/mattn/go-isatty v0.0.21/go.mod h1:ZXfXG4SQHsB/w3ZeOYbR0PrPwLy+n6xiMrJlRFqopa4=
-github.com/mbvlabs/andurel/pkg/email v0.6.1 h1:+yfbsffHwxUnMHyWLApsmQw4DSTwf/7G8tZ6kwhueuM=
-github.com/mbvlabs/andurel/pkg/email v0.6.1/go.mod h1:qg3UXaLTlm6LJ087jWvqBLNxtD1R+W77tZ2fqctw3ww=
+github.com/mbvlabs/andurel/pkg/postmand v0.6.1 h1:vewHHcFoK7a103yjSOlLHSMnzo2cCHtirRPPMIVlYDM=
+github.com/mbvlabs/andurel/pkg/postmand v0.6.1/go.mod h1:MahlH3psojhbAM7f9hGzQ//Ey5olMviwe1dsejUph2o=
 github.com/mbvlabs/andurel/pkg/telemetry v0.2.3 h1:T70mFoL8oKDNByxQt+qbew3GiNVMlqNYBYxknrXWcE0=
 github.com/mbvlabs/andurel/pkg/telemetry v0.2.3/go.mod h1:gcZRxndv7wvMptVsdHCWiRs9jbVWButoNPJsH2axx10=
 github.com/mdelapenya/tlscert v0.2.0 h1:7H81W6Z/4weDvZBNOfQte5GpIMo0lGYEeWbkGp5LJHI=

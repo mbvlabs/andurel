@@ -2,8 +2,6 @@
 package versions
 
 const (
-	// Templ is the default templ tool version.
-	Templ = "v0.3.1020"
 	// Golines is the pinned golines formatter version used by CI and local tooling.
 	Golines = "v0.13.0"
 	// Goimports is the pinned goimports version used by CI and local tooling.
@@ -35,15 +33,15 @@ const (
 	// Lifecycle is the standalone Andurel process lifecycle module version verified with this framework.
 	Lifecycle = "v0.1.1"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
-	Inertia = "v0.14.1"
-	// Email is the standalone Andurel email module version verified with this framework.
-	Email = "v0.6.1"
+	Inertia = "v0.15.0"
+	// Postmand is the standalone Andurel email module version verified with this framework.
+	Postmand = "v0.6.1"
 	// Env is the standalone Andurel environment module version verified with this framework.
 	Env = "v0.1.1"
 	// Routing is the standalone Andurel routing module version verified with this framework.
 	Routing = "v0.9.1"
 	// Storage is the standalone Andurel storage module version verified with this framework.
-	Storage = "v0.15.1"
+	Storage = "v0.16.0"
 	// Telemetry is the standalone Andurel telemetry module version verified with this framework.
 	Telemetry = "v0.2.3"
 	// Validation is the standalone Andurel validation module version verified with this framework.
@@ -57,11 +55,11 @@ var verifiedPackageVersions = map[string]string{
 	PkgPrefix + "anduin":     Anduin,
 	PkgPrefix + "auth":       Auth,
 	PkgPrefix + "cache":      Cache,
-	PkgPrefix + "email":      Email,
 	PkgPrefix + "env":        Env,
 	PkgPrefix + "inertia":    Inertia,
 	PkgPrefix + "kiks":       Kiks,
 	PkgPrefix + "lifecycle":  Lifecycle,
+	PkgPrefix + "postmand":   Postmand,
 	PkgPrefix + "routing":    Routing,
 	PkgPrefix + "storage":    Storage,
 	PkgPrefix + "telemetry":  Telemetry,

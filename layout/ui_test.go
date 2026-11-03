@@ -32,8 +32,8 @@ func TestParseUICombo(t *testing.T) {
 			want:  UISelection{Inertia: "svelte", PackageManager: "npm"},
 		},
 		{
-			name:    "templ/datastar rejected",
-			combo:   "templ/datastar",
+			name:    "datastar rejected",
+			combo:   "datastar/npm",
 			wantErr: true,
 		},
 		{

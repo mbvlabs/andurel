@@ -248,7 +248,7 @@ func AssertDir(t testing.TB, g *goldie.Goldie, goldenPrefix, projectDir, relDir 
 // `andurel new` even under andurel_golden (downloads, VCS metadata, tidy churn,
 // secrets). Filters paths only — never mutates content. Nightly full-tree
 // capture uses AssertTree with FullScaffoldDenylist; domains/internal/queries
-// and *_templ.go are included.
+// and the embedded resources/root.html are included.
 func ShouldSkipNewProjectPath(rel string, isDir bool) bool {
 	return ShouldSkipFullScaffoldPath(rel, isDir, FullScaffoldDenylist)
 }
@@ -381,7 +381,7 @@ func BuildTaggedCLI(projectRoot, outDir string) (binPath string, err error) {
 	return binPath, nil
 }
 
-// InstallPinnedTools installs templ/golines/goimports at the versions from
+// InstallPinnedTools installs golines/goimports at the versions from
 // layout/versions into gobin.
 func InstallPinnedTools(gobin string, tools []struct {
 	Module  string

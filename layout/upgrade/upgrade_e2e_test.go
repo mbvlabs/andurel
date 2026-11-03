@@ -1,12 +1,21 @@
 package upgrade
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"go/ast"
+	"go/format"
+	"go/parser"
+	"go/token"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -26,8 +35,9 @@ const (
 	upgradeE2ECandidateVersion = "v2.0.0-rc.1"
 
 	// The rc.1 candidate publishes these framework package pins.
-	upgradeE2ECandidateAnduinVersion  = "v0.8.0"
-	upgradeE2ECandidateInertiaVersion = "v0.14.1"
+	upgradeE2ECandidateAnduinVersion   = "v0.8.0"
+	upgradeE2ECandidateInertiaVersion  = "v0.15.0"
+	upgradeE2ECandidatePostmandVersion = "v0.6.1"
 )
 
 // upgradeE2ECases covers the existing released beta.4 -> beta.5 regression and
@@ -60,9 +70,15 @@ var upgradeE2ECases = []struct {
 }
 
 // TestUpgradeToHEAD scaffolds with each released CLI in upgradeE2ECases,
-// upgrades the result with this checkout, and requires the result to build and
-// vet cleanly without manual actions. The candidate cases additionally require
-// the rc.1 manifest metadata and current published package pins.
+// TestUpgradeToHEAD scaffolds with each released CLI in upgradeE2ECases,
+// upgrades the result with this checkout, applies the rc.1 templ-root migration
+// documented in docs/release-notes/v2.0.0-rc.1.md, and requires the migrated
+// result to build and vet cleanly. The upgrade itself reports no manual
+// actions; the root document is application-owned and deliberately not
+// rewritten. Candidate cases also apply the documented rc.1
+// pkg/email -> pkg/postmand import migration because the module removal is a
+// deliberate pre-rc breaking change. They additionally require the rc.1
+// manifest metadata and current published package pins.
 //
 // The test downloads the released CLI and modules, so it only runs in nightly
 // and release-readiness. Set ANDUREL_UPGRADE_E2E=1 to enable it.
@@ -70,8 +86,7 @@ var upgradeE2ECases = []struct {
 // Set ANDUREL_UPGRADE_E2E_LOCAL_PKG=1 to replace every pkg/* module with this
 // checkout after the upgrade, the way `just local-replace` does. Use it on a
 // branch whose package changes are not published yet; the default variant
-// stays on the published pins for nightly and release-readiness. Candidate
-// cases are release-shaped and are skipped in local-replace mode.
+// stays on the published pins for nightly and release-readiness.
 func TestUpgradeToHEAD(t *testing.T) {
 	if os.Getenv("ANDUREL_UPGRADE_E2E") != "1" {
 		t.Skip("upgrade end-to-end test requires ANDUREL_UPGRADE_E2E=1")
@@ -80,9 +95,6 @@ func TestUpgradeToHEAD(t *testing.T) {
 
 	for _, tc := range upgradeE2ECases {
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.verifyCandidate && localPkg {
-				t.Skip("candidate paths assert published pins; ANDUREL_UPGRADE_E2E_LOCAL_PKG replaces them")
-			}
 			testUpgradeToTarget(t, tc.source, tc.target, localPkg, tc.verifyCandidate)
 		})
 	}
@@ -139,26 +151,121 @@ func testUpgradeToTarget(
 	if report.ToVersion != target {
 		t.Fatalf("upgrade reported target version %q, want %q", report.ToVersion, target)
 	}
-	if len(report.ManualActions) != 0 {
-		t.Fatalf("upgrade %s to %s reported manual actions: %#v", source, target, report.ManualActions)
+	// rc.1 makes two deliberate application-owned breaking changes. The
+	// upgrade pins this CLI's pkg/inertia and pkg/storage even when the target
+	// is an earlier pre-release, so every legacy beta shape now needs both
+	// migrations. The upgrade reports them and never rewrites the root document
+	// or email code, so this test applies the documented migrations itself.
+	wantActions := []string{templRootActionID, postmandMigrationActionID}
+	if got := actionIDs(report.ManualActions); !slices.Equal(got, wantActions) {
+		t.Fatalf("upgrade %s to %s manual actions = %#v, want %#v", source, target, got, wantActions)
 	}
 
+	assertLegacyTemplRootAwaitingMigration(t, root)
+	// rc.1 deliberately breaks compiled templ roots. Upgrades never rewrite
+	// this application-owned document, so every upgraded beta project applies
+	// the documented manual migration before building. The current package
+	// pins are what make the old compiled root fail, so this holds for the
+	// historical beta target too.
+	migrateLegacyTemplRoot(t, root)
+	// rc.1 removes pkg/email. Upgrade deliberately does not rewrite
+	// application-owned Go code, so the test applies the import rewrite the
+	// release notes prescribe before tidy and build.
+	migrateLegacyEmailImports(t, root)
 	if localPkg {
 		replaceWithLocalPackages(t, root)
 	}
 
 	runUpgradeE2EGo(t, root, "mod", "tidy")
 	if verifyCandidate {
-		assertCandidateProject(t, root, target)
+		assertCandidateProject(t, root, target, localPkg)
 	}
 	runUpgradeE2EGo(t, root, "build", "./...")
 	runUpgradeE2EGo(t, root, "vet", "./...")
 }
 
+// assertLegacyTemplRootAwaitingMigration proves the pre-rc.1 upgrade leaves the
+// app-owned compiled templ root untouched. The upgrade must not pretend the
+// removed templ helpers still exist.
+func assertLegacyTemplRootAwaitingMigration(t *testing.T, root string) {
+	t.Helper()
+
+	for _, rel := range []string{"resources/root.templ", "resources/root_templ.go"} {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel))); err != nil {
+			t.Fatalf("upgrade rewrote app-owned root %s: %v", rel, err)
+		}
+	}
+	compiled := string(mustReadProjectFile(t, root, "resources/root_templ.go"))
+	if !strings.Contains(compiled, "github.com/a-h/templ") ||
+		!strings.Contains(compiled, "inertia.SSRHead") {
+		t.Fatalf("expected a legacy compiled templ root, got:\n%s", compiled)
+	}
+}
+
+// migrateLegacyTemplRoot applies the documented rc.1 root migration: replace
+// the templ document with resources/root.html + resources/root.go. The runtime
+// call site is unchanged because resources.Root now satisfies WithRoot.
+func migrateLegacyTemplRoot(t *testing.T, root string) {
+	t.Helper()
+
+	templates := filepath.Join(localCheckoutRoot(t), "layout", "templates")
+	writeUpgradeProjectFile(
+		t,
+		root,
+		"resources/root.html",
+		mustReadTestFile(t, filepath.Join(templates, "resources_root_html.tmpl")),
+	)
+	writeUpgradeProjectFile(
+		t,
+		root,
+		"resources/root.go",
+		mustReadTestFile(t, filepath.Join(templates, "resources_root_go.tmpl")),
+	)
+	for _, rel := range []string{"resources/root.templ", "resources/root_templ.go"} {
+		if err := os.Remove(filepath.Join(root, filepath.FromSlash(rel))); err != nil &&
+			!os.IsNotExist(err) {
+			t.Fatalf("remove legacy root %s: %v", rel, err)
+		}
+	}
+	dropTool := exec.Command(
+		"go",
+		"mod",
+		"edit",
+		"-droptool=github.com/a-h/templ/cmd/templ",
+	)
+	dropTool.Dir = root
+	if err := dropTool.Run(); err != nil {
+		// The upgrade already drops the directive; a missing tool is not an error.
+		t.Logf("droptool after upgrade: %v", err)
+	}
+}
+
+func writeUpgradeProjectFile(t *testing.T, root, rel, content string) {
+	t.Helper()
+
+	path := filepath.Join(root, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", rel, err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write %s: %v", rel, err)
+	}
+}
+
+func mustReadTestFile(t *testing.T, path string) string {
+	t.Helper()
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	return string(content)
+}
+
 // assertCandidateProject checks the final candidate metadata after the
 // prescribed tidy. The expected pins are literal so a pin drift cannot silently
 // make this release-candidate assertion follow the code it is checking.
-func assertCandidateProject(t *testing.T, root string, target string) {
+func assertCandidateProject(t *testing.T, root string, target string, localPkg bool) {
 	t.Helper()
 
 	lock, err := layout.ReadLockFile(root)
@@ -196,14 +303,133 @@ func assertCandidateProject(t *testing.T, root string, target string) {
 			path:    "github.com/mbvlabs/andurel/pkg/inertia",
 			version: upgradeE2ECandidateInertiaVersion,
 		},
+		{
+			path:    "github.com/mbvlabs/andurel/pkg/postmand",
+			version: upgradeE2ECandidatePostmandVersion,
+		},
 	} {
 		if got := required[pin.path]; got != pin.version {
 			t.Errorf("go.mod pin %s = %q, want %q", pin.path, got, pin.version)
 		}
 	}
-	if len(file.Replace) != 0 {
+	if !localPkg && len(file.Replace) != 0 {
 		t.Fatalf("go.mod has local replace directives after candidate upgrade: %#v", file.Replace)
 	}
+}
+
+const (
+	legacyEmailImportPath = "github.com/mbvlabs/andurel/pkg/email"
+	postmandImportPath    = "github.com/mbvlabs/andurel/pkg/postmand"
+)
+
+// migrateLegacyEmailImports applies the documented rc.1 breaking migration to
+// application-owned Go files. The upgrade does not rewrite application code;
+// this helper mirrors the release-note import rewrite so the candidate E2E
+// asserts the post-migration app rather than pretending the removed pkg/email
+// types remain compatible with pkg/storage v0.16.0.
+func migrateLegacyEmailImports(t *testing.T, root string) {
+	t.Helper()
+
+	migrated := 0
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			switch entry.Name() {
+			case ".git", "vendor":
+				return filepath.SkipDir
+			default:
+				return nil
+			}
+		}
+		if !strings.HasSuffix(entry.Name(), ".go") {
+			return nil
+		}
+
+		content, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		if !bytes.Contains(content, []byte(legacyEmailImportPath)) {
+			return nil
+		}
+
+		updated, changed, migrateErr := migrateLegacyEmailFile(path, content)
+		if migrateErr != nil {
+			return fmt.Errorf("migrate %s: %w", path, migrateErr)
+		}
+		if !changed {
+			return nil
+		}
+		if writeErr := os.WriteFile(path, updated, 0o644); writeErr != nil {
+			return writeErr
+		}
+		migrated++
+
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("migrate legacy pkg/email imports: %v", err)
+	}
+	t.Logf("applied documented pkg/email -> pkg/postmand import migration to %d files", migrated)
+}
+
+// migrateLegacyEmailFile rewrites an import of pkg/email to pkg/postmand and,
+// when the old import was unaliased, the `email.` selectors bound to it. An
+// explicitly aliased import keeps its local name, so its selectors do not
+// change. Selectors whose identifier resolves to a local declaration are left
+// alone even if they are named email.
+func migrateLegacyEmailFile(path string, content []byte) ([]byte, bool, error) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, path, content, parser.ParseComments)
+	if err != nil {
+		return nil, false, err
+	}
+
+	unaliased := false
+	found := false
+	for _, importSpec := range file.Imports {
+		importPath, unquoteErr := strconv.Unquote(importSpec.Path.Value)
+		if unquoteErr != nil {
+			return nil, false, unquoteErr
+		}
+		if importPath != legacyEmailImportPath {
+			continue
+		}
+
+		found = true
+		if importSpec.Name == nil {
+			unaliased = true
+		}
+		importSpec.Path.Value = strconv.Quote(postmandImportPath)
+	}
+	if !found {
+		return content, false, nil
+	}
+
+	if unaliased {
+		ast.Inspect(file, func(node ast.Node) bool {
+			selector, ok := node.(*ast.SelectorExpr)
+			if !ok {
+				return true
+			}
+			ident, ok := selector.X.(*ast.Ident)
+			if !ok || ident.Name != "email" || ident.Obj != nil {
+				return true
+			}
+			ident.Name = "postmand"
+
+			return true
+		})
+	}
+
+	var formatted bytes.Buffer
+	if err := format.Node(&formatted, fset, file); err != nil {
+		return nil, false, err
+	}
+
+	return formatted.Bytes(), true, nil
 }
 
 // replaceWithLocalPackages points every pkg/* module in the upgraded project at

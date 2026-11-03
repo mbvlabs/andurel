@@ -36,7 +36,7 @@ func errorHandlerRequest(method, target string, headers map[string]string) (*htt
 
 func TestErrorHandlerRendersFieldErrorsAsValidationPage(t *testing.T) {
 	var captured RootData
-	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(&captured)))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestErrorHandlerRendersFieldErrorsAsValidationPage(t *testing.T) {
 
 func TestErrorHandlerWritesJSONFieldErrors(t *testing.T) {
 	var captured RootData
-	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(&captured)))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -92,7 +92,7 @@ func TestErrorHandlerWritesJSONFieldErrors(t *testing.T) {
 
 func TestErrorHandlerMapsSentinelsToPagesAndJSON(t *testing.T) {
 	var captured RootData
-	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(&captured)))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestErrorHandlerMapsSentinelsToPagesAndJSON(t *testing.T) {
 
 func TestErrorHandlerAcceptsMappingSlice(t *testing.T) {
 	var captured RootData
-	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(&captured)))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -159,7 +159,7 @@ func TestErrorHandlerWritesSafeUnmappedServerErrorPage(t *testing.T) {
 		Body: `<div data-server-rendered="true" data-page="app">ssr</div>`,
 	}}
 	renderer, err := newTestRenderer(
-		WithRoot(testRoot(&captured)),
+		WithRootFunc(testRoot(&captured)),
 		WithSSRRenderer(ssr),
 		WithSSRDefault(true),
 	)
@@ -197,7 +197,7 @@ func TestErrorHandlerWritesSafeUnmappedServerErrorPage(t *testing.T) {
 
 func TestErrorHandlerPassesUnmappedServerErrorJSONToRouter(t *testing.T) {
 	var captured RootData
-	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(&captured)))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -220,7 +220,7 @@ func TestErrorHandlerPassesUnmappedServerErrorJSONToRouter(t *testing.T) {
 
 func TestErrorHandlerWritesUnmappedClientErrorAsJSON(t *testing.T) {
 	var captured RootData
-	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(&captured)))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -276,7 +276,7 @@ func TestErrorHandlerSSRValidationPage(t *testing.T) {
 		Body: `<div data-server-rendered="true" data-page="app">validation</div>`,
 	}}
 	renderer, err := newTestRenderer(
-		WithRoot(testRoot(&captured)),
+		WithRootFunc(testRoot(&captured)),
 		WithSSRRenderer(ssr),
 	)
 	if err != nil {
@@ -307,7 +307,7 @@ func TestErrorHandlerSSRMappedPage(t *testing.T) {
 		Body: `<div data-server-rendered="true" data-page="app">not found</div>`,
 	}}
 	renderer, err := newTestRenderer(
-		WithRoot(testRoot(&captured)),
+		WithRootFunc(testRoot(&captured)),
 		WithSSRRenderer(ssr),
 	)
 	if err != nil {
@@ -333,7 +333,7 @@ func TestErrorHandlerSSRMappedPage(t *testing.T) {
 
 func TestErrorHandlerRendersFallbackPageForUnmappedServerError(t *testing.T) {
 	var captured RootData
-	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(&captured)))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -357,7 +357,7 @@ func TestErrorHandlerRendersFallbackPageForUnmappedServerError(t *testing.T) {
 
 func TestErrorHandlerFallbackPageLeavesClientErrorsToTheRouter(t *testing.T) {
 	var captured RootData
-	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(&captured)))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -381,7 +381,7 @@ func TestErrorHandlerFallbackPageDoesNotSSRAnSSRFailure(t *testing.T) {
 	var captured RootData
 	ssr := &fakeSSRRenderer{err: errors.New("sidecar down")}
 	renderer, err := newTestRenderer(
-		WithRoot(testRoot(&captured)),
+		WithRootFunc(testRoot(&captured)),
 		WithSSRRenderer(ssr),
 		WithSSRFailFast(true),
 	)
@@ -421,7 +421,7 @@ func TestErrorHandlerFallbackPageDoesNotSSRAnSSRFailure(t *testing.T) {
 
 func TestPageErrorsSetsFieldMap(t *testing.T) {
 	var captured RootData
-	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(&captured)))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -459,7 +459,7 @@ func TestErrorPagesStayClientRenderedUnderRendererSSRDefault(t *testing.T) {
 		Body: `<div data-server-rendered="true" data-page="app">ssr</div>`,
 	}}
 	renderer, err := newTestRenderer(
-		WithRoot(testRoot(&captured)),
+		WithRootFunc(testRoot(&captured)),
 		WithSSRRenderer(ssr),
 		WithSSRDefault(true),
 	)
@@ -513,7 +513,7 @@ func TestErrorHandlerFallbackPageOptsIntoSSRExplicitly(t *testing.T) {
 		Body: `<div data-server-rendered="true" data-page="app">themed</div>`,
 	}}
 	renderer, err := newTestRenderer(
-		WithRoot(testRoot(&captured)),
+		WithRootFunc(testRoot(&captured)),
 		WithSSRRenderer(ssr),
 		WithSSRDefault(true),
 	)
@@ -545,7 +545,7 @@ func TestThemedFallbackAnswersFailedSSRRenderWithStatus500(t *testing.T) {
 	var captured RootData
 	ssr := &fakeSSRRenderer{err: errors.New("connection refused")}
 	renderer, err := newTestRenderer(
-		WithRoot(testRoot(&captured)),
+		WithRootFunc(testRoot(&captured)),
 		WithSSRRenderer(ssr),
 		WithSSRDefault(true),
 		WithSSRFailFast(true),

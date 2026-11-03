@@ -15,6 +15,16 @@ import (
 
 func runUpgradeNotesTest(t *testing.T, version string, args ...string) (string, error) {
 	t.Helper()
+	return runUpgradeNotesTestWithSetup(t, version, nil, args...)
+}
+
+func runUpgradeNotesTestWithSetup(
+	t *testing.T,
+	version string,
+	setup func(rootDir string),
+	args ...string,
+) (string, error) {
+	t.Helper()
 	resetCLITestSeams(t)
 
 	rootDir := t.TempDir()
@@ -33,6 +43,9 @@ func runUpgradeNotesTest(t *testing.T, version string, args ...string) (string, 
 	}
 	if err := lock.WriteLockFile(rootDir); err != nil {
 		t.Fatalf("write andurel.lock: %v", err)
+	}
+	if setup != nil {
+		setup(rootDir)
 	}
 	findGoModRoot = func() (string, error) {
 		return rootDir, nil
@@ -73,6 +86,40 @@ func TestUpgradeNotesReportsNoActionsBetweenPreReleases(t *testing.T) {
 	}
 	if want := "No manual actions from v2.0.0-beta.2 to v2.0.0-beta.3."; !strings.Contains(human, want) {
 		t.Fatalf("output missing %q:\n%s", want, human)
+	}
+}
+
+func TestUpgradeNotesFiltersAlreadyAppliedRcOneActions(t *testing.T) {
+	stdout, err := runUpgradeNotesTestWithSetup(
+		t,
+		"v2.0.0-rc.1",
+		func(rootDir string) {
+			writeTestFile(t, rootDir, "go.mod", `module example.com/app
+
+go 1.27.1
+
+require github.com/mbvlabs/andurel/pkg/postmand v0.6.1
+`)
+			writeTestFile(t, rootDir, "resources/root.html", "<!doctype html>\n")
+			writeTestFile(t, rootDir, "resources/root.go", "package resources\n")
+		},
+		"--from",
+		"v2.0.0-beta.5",
+		"--json",
+	)
+	if err != nil {
+		t.Fatalf("upgrade-notes: %v", err)
+	}
+
+	var envelope struct {
+		OK   bool               `json:"ok"`
+		Data upgradeNotesReport `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &envelope); err != nil {
+		t.Fatalf("decode envelope: %v\n%s", err, stdout)
+	}
+	if envelope.Data.ManualActions == nil || len(envelope.Data.ManualActions) != 0 {
+		t.Fatalf("manual actions = %#v, want an empty list", envelope.Data.ManualActions)
 	}
 }
 

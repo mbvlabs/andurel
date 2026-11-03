@@ -28,7 +28,7 @@ andurel --agent --help
 With `--json` or `--agent`, a failed `andurel verify` writes its report to stderr and leaves stdout empty; read the failure report from stderr.
 
 `andurel verify` reports each step as `ok`, `fail`, or `skipped`. Every independent stage still runs after another stage fails, so the report lists all failures. A missing
-`templ`, `tailwindcli`, or `narsilc` binary fails the `generated` step with the
+`tailwindcli` or `narsilc` binary fails the `generated` step with the
 `missing-tool` rule; run `andurel tool sync` to install it. `--skip-generated`
 marks that step `skipped` and does not fail the run.
 
@@ -101,7 +101,7 @@ also prints each rule's fix):
 | `content-required` | every path listed in andurel.content.toml required exists |
 | `content-link` | local Markdown links and images resolve inside the project; configured anchors exist |
 | `content-checker` | each declared content checker exits 0 within its timeout from its declared working directory |
-| `generated` | generated templ, email, queries, routes, and payload output is up to date |
+| `generated` | generated email, queries, routes, and payload output is up to date |
 | `missing-tool` | a required generation binary is installed; run 'andurel tool sync' |
 <!-- andurel:verify-rules:end -->
 
@@ -207,7 +207,7 @@ andurel run --tools mailpit
 | `andurel doctor` | Run diagnostic checks on the project |
 | `andurel email` | Render email previews with fixture data |
 | `andurel email render` | Render emails to HTML, text and a gallery (`--watch` keeps it live) |
-| `andurel fmt` | Format Go and Templ source files |
+| `andurel fmt` | Format Go source files |
 | `andurel generate` | Create files that have no derived source |
 | `andurel generate migration` | Create a new SQL migration file |
 | `andurel inspect` | Read-only project shape |

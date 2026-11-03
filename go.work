@@ -5,11 +5,11 @@ use (
 	./pkg/anduin
 	./pkg/auth
 	./pkg/cache
-	./pkg/email
 	./pkg/env
 	./pkg/inertia
 	./pkg/kiks
 	./pkg/lifecycle
+	./pkg/postmand
 	./pkg/routing
 	./pkg/storage
 	./pkg/telemetry

@@ -31,11 +31,11 @@ Andurel is built for humans and agents on the same pad:
 - **Airframe**: `domains/` (business logic + persistence), `services/` (application logic), `handlers/` (HTTP), `routes/`, and `middleware/` — all ordinary Go you own
 - **GNC**: Explicit constructor injection in `app/`. The dependency graph is readable top-to-bottom; there is no container and no reflection
 - **Propellant**: PostgreSQL with narsilc-generated queries from SQL colocated with the domain that owns it
-- **Payload**: Inertia v3 with React, Vue, or Svelte. One Go backend, official Inertia adapters, optional SSR. Templ survives only for the Inertia root document; email is React Email
+- **Payload**: Inertia v3 with React, Vue, or Svelte. One Go backend, official Inertia adapters, optional SSR. The Inertia root document is standard-library html/template; email is React Email
 - **Range ops**: River jobs, email, and queues on the same stack that serves the request path
 - **Ground support**: Agent-ready CLI with read-only patterns, JSON discovery, and installed skills so machines can operate the project without a second stack
-- **Live reload**: `andurel run` uses an in-process runner to rebuild Go, reload templates and export React Email, and run Vite (`--tools mailpit` for sidecars)
-- **Production build**: `andurel build` compiles Templ, exports React Email, builds Vite assets, and compiles every `cmd/*` process (`app`, `queue`, `migrate`, `ssr`) into `dist/`
+- **Live reload**: `andurel run` uses an in-process runner to rebuild Go, reload the embedded root document and export React Email, and run Vite (`--tools mailpit` for sidecars)
+- **Production build**: `andurel build` compiles Go, exports React Email, builds Vite assets, and compiles every `cmd/*` process (`app`, `queue`, `migrate`, `ssr`) into `dist/`
 
 **Humans.** One-time generation. The scaffold writes Go and Inertia pages you can read, edit, and ship. After that, the code is yours, laid out in a shape you can navigate.
 
@@ -48,7 +48,7 @@ Andurel is built for humans and agents on the same pad:
 - **[narsilc](https://github.com/mbvlabs/narsilc)**: Typed SQL with caller-owned result structs
 - **[Inertia v3](https://andurel.com/docs/latest/frontend-options)**: React / Vue / Svelte + Vite
 - **[React Email](https://react.email/)**: Email components in TSX, exported to committed Go templates
-- **[templ](https://templ.guide/)**: The Inertia root document only
+- **[html/template](https://pkg.go.dev/html/template)**: The Inertia root document
 - **[River](https://riverqueue.com/)**: Background jobs
 - **[OpenTelemetry](https://opentelemetry.io/)**: Observability
 - **[Tailwind CSS](https://tailwindcss.com/)**: CSS
@@ -160,7 +160,7 @@ A new app is ordinary Go you own. Top-level shape:
 | `handlers/` | HTTP handlers (`func(ctx context.Context) error`); one flat package |
 | `routes/` | Route data: names, paths, URL builders |
 | `middleware/` | App HTTP middleware (auth, authorization); the cookie jar is built in `app/` |
-| `resources/root.templ` | Inertia root document (the only templ) |
+| `resources/root.html` | Inertia root document rendered with `html/template` |
 | `resources/js/` | Inertia pages, layouts, components, and generated TS helpers |
 | `emails/` | Go email structs (`ToHTML`/`ToText`), committed `text/template` bodies, and React Email TSX components exported by `andurel sync emails` |
 | `queue/` | River jobs and workers |
@@ -170,7 +170,7 @@ A new app is ordinary Go you own. Top-level shape:
 
 **Default**: Inertia React + pnpm (`--ui react/pnpm`).
 
-**`--ui react/pnpm|vue/bun|svelte/npm`**: Same Go backend; choose the Inertia adapter and JavaScript package manager. Inertia is the only UI; there are no templ/Datastar pages. JSON endpoints are ordinary routes that return `anduin.JSON`; there is no separate API mode.
+**`--ui react/pnpm|vue/bun|svelte/npm`**: Same Go backend; choose the Inertia adapter and JavaScript package manager. Inertia is the only UI; there are no server-rendered template pages and no Datastar pages. JSON endpoints are ordinary routes that return `anduin.JSON`; there is no separate API mode.
 
 Details: [directory structure](https://andurel.com/docs/latest/directory-structure) · [frontend options](https://andurel.com/docs/latest/frontend-options).
 
@@ -187,7 +187,7 @@ Details: [directory structure](https://andurel.com/docs/latest/directory-structu
 | `andurel db` | Database lifecycle: create, drop, nuke, rebuild, migrate, seed, console |
 | `andurel console` (`c`) | Open an interactive database console |
 | `andurel run` (`r`) | Dev server with live reload |
-| `andurel build` | Production build (Templ, React Email export, Vite, all `cmd/*` processes in `dist/`) |
+| `andurel build` | Production build (React Email export, Vite, all `cmd/*` processes in `dist/`) |
 | `andurel tool sync` | Download pinned project binaries |
 | `andurel upgrade` | Bring an app forward to a newer Andurel |
 | `andurel doctor` | Project diagnostics |

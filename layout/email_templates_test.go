@@ -25,7 +25,7 @@ func TestGeneratedMailSupportsSMTPAndRejectsMailpitInProduction(t *testing.T) {
 		"if app.IsProduction() {",
 		"set EMAIL_PROVIDER=%s",
 		"case config.SMTPDriver, config.LogDriver:",
-		"email.NewLog(slog.Default())",
+		"postmand.NewLog(slog.Default())",
 	)
 }
 
@@ -47,9 +47,9 @@ func TestScaffoldEmailTemplatesRenderWithTextTemplate(t *testing.T) {
 	}
 	for _, want := range []string{
 		"package emails",
-		`renderHTML("verify_email", v)`,
-		`renderText("verify_email", v)`,
-		`var _ pkgemail.Transformer = (*VerifyEmail)(nil)`,
+		`templates.HTML("verify_email", v)`,
+		`templates.Text("verify_email", v)`,
+		`var _ postmand.Transformer = (*VerifyEmail)(nil)`,
 	} {
 		if !strings.Contains(string(verifySource), want) {
 			t.Errorf("emails/verify_email.go missing %q", want)
@@ -60,15 +60,18 @@ func TestScaffoldEmailTemplatesRenderWithTextTemplate(t *testing.T) {
 		t.Fatalf("read emails/render.go: %v", err)
 	}
 	for _, want := range []string{
-		`"text/template"`,
+		`"embed"`,
 		`//go:embed templates/*.tmpl`,
+		`postmand.MustParseTemplates(templatesFS, "templates")`,
 	} {
 		if !strings.Contains(string(renderSource), want) {
 			t.Errorf("emails/render.go missing %q", want)
 		}
 	}
-	if strings.Contains(string(renderSource), `"html/template"`) {
-		t.Error("emails/render.go must use text/template so MSO comments survive")
+	for _, unwanted := range []string{"renderHTML(", "renderText(", `"html/template"`} {
+		if strings.Contains(string(renderSource), unwanted) {
+			t.Errorf("emails/render.go must not contain %q", unwanted)
+		}
 	}
 
 	verifyHTML := executeEmailTemplateForTest(

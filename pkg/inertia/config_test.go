@@ -13,7 +13,7 @@ import (
 func TestNewRendererWiresHTTPClientOnly(t *testing.T) {
 	t.Parallel()
 
-	renderer, err := newTestRenderer(WithRoot(testRoot(nil)))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(nil)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,7 +29,7 @@ func TestDefaultAssetVersion(t *testing.T) {
 	cfg := RendererConfig{ContainerID: "app", EntryPoint: "app.ts", BuildPathURL: "/assets/*", SSRURL: "http://localhost:13714", SSRTimeout: time.Second, SSRMaxResponseBytes: 1 << 20}
 	makeRenderer := func(manifest string, options ...Option) *Renderer {
 		t.Helper()
-		base := []Option{WithRoot(testRoot(nil)), WithEnvironment("production"), WithAssetFS(fstest.MapFS{
+		base := []Option{WithRootFunc(testRoot(nil)), WithEnvironment("production"), WithAssetFS(fstest.MapFS{
 			"dist/vite/manifest.json": &fstest.MapFile{Data: []byte(manifest)},
 		})}
 		r, err := NewRenderer(cfg, append(base, options...)...)
@@ -62,7 +62,7 @@ func TestDefaultAssetVersion(t *testing.T) {
 	if got := makeRenderer(a, WithVersion("custom")).version; got != "custom" {
 		t.Fatalf("explicit version = %q", got)
 	}
-	dev, err := NewRenderer(cfg, WithRoot(testRoot(nil)))
+	dev, err := NewRenderer(cfg, WithRootFunc(testRoot(nil)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestNewRendererAllowsServiceHostname(t *testing.T) {
 			SSRTimeout:          2 * time.Second,
 			SSRMaxResponseBytes: 2 << 20,
 		},
-		WithRoot(testRoot(nil)),
+		WithRootFunc(testRoot(nil)),
 	)
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)

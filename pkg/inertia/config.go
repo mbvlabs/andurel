@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"html/template"
+	"io"
 	"io/fs"
 	"strings"
 	"time"
@@ -89,7 +91,7 @@ func NewRenderer(cfg RendererConfig, options ...Option) (*Renderer, error) {
 		}
 	}
 	if renderer.root == nil {
-		return nil, fmt.Errorf("inertia: root constructor cannot be nil")
+		return nil, fmt.Errorf("inertia: root renderer cannot be nil")
 	}
 
 	if renderer.environment != "production" {
@@ -220,10 +222,28 @@ func WithEnvironment(environment string) Option {
 	}
 }
 
-func WithRoot(root RootFunc) Option {
+// WithRoot sets the html/template root document, normally parsed from
+// resources/root.html.
+func WithRoot(root *template.Template) Option {
 	return func(renderer *Renderer) error {
 		if root == nil {
-			return fmt.Errorf("inertia: root constructor cannot be nil")
+			return fmt.Errorf("inertia: root template cannot be nil")
+		}
+
+		renderer.root = func(writer io.Writer, data RootData) error {
+			return root.Execute(writer, data)
+		}
+
+		return nil
+	}
+}
+
+// WithRootFunc sets a custom root document renderer. Applications normally use
+// WithRoot; tests and non-template documents use WithRootFunc.
+func WithRootFunc(root RootFunc) Option {
+	return func(renderer *Renderer) error {
+		if root == nil {
+			return fmt.Errorf("inertia: root renderer cannot be nil")
 		}
 
 		renderer.root = root

@@ -65,7 +65,7 @@ func verifySetup(rootDir string, needs verifySetupNeeds) (verifyStep, []string) 
 // checks need. Installed means the project-local bin/<name> binary exists, the
 // same predicate doctor uses.
 func missingGenerationTools(rootDir string) []string {
-	needed := []string{"templ"}
+	var needed []string
 	if hasQueries, err := cmds.HasQueryFiles(rootDir); err == nil && hasQueries {
 		needed = append(needed, "narsilc")
 	}

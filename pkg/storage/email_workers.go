@@ -3,21 +3,21 @@ package storage
 import (
 	"context"
 
-	"github.com/mbvlabs/andurel/pkg/email"
+	"github.com/mbvlabs/andurel/pkg/postmand"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/riverqueue/river"
 )
 
 // SendTransactionalEmailArgs carries one transactional email to its worker.
 type SendTransactionalEmailArgs struct {
-	Data email.TransactionalData
+	Data postmand.TransactionalData
 }
 
 func (SendTransactionalEmailArgs) Kind() string { return "send_transactional_email" }
 
 // SendMarketingEmailArgs carries one marketing email to its worker.
 type SendMarketingEmailArgs struct {
-	Data email.MarketingData
+	Data postmand.MarketingData
 }
 
 func (SendMarketingEmailArgs) Kind() string { return "send_marketing_email" }
@@ -25,8 +25,8 @@ func (SendMarketingEmailArgs) Kind() string { return "send_marketing_email" }
 // AddEmailWorkers registers the framework email workers on workers.
 func AddEmailWorkers(
 	workers *river.Workers,
-	transactional email.TransactionalSender,
-	marketing email.MarketingSender,
+	transactional postmand.TransactionalSender,
+	marketing postmand.MarketingSender,
 ) {
 	river.AddWorker(workers, NewSendTransactionalEmailWorker(transactional))
 	river.AddWorker(workers, NewSendMarketingEmailWorker(marketing))
@@ -35,11 +35,11 @@ func AddEmailWorkers(
 // SendTransactionalEmailWorker delivers a transactional email.
 type SendTransactionalEmailWorker struct {
 	river.WorkerDefaults[SendTransactionalEmailArgs]
-	sender email.TransactionalSender
+	sender postmand.TransactionalSender
 }
 
 func NewSendTransactionalEmailWorker(
-	sender email.TransactionalSender,
+	sender postmand.TransactionalSender,
 ) *SendTransactionalEmailWorker {
 	return &SendTransactionalEmailWorker{
 		sender: sender,
@@ -62,13 +62,13 @@ func (w *SendTransactionalEmailWorker) Work(
 // fix.
 func SendTransactional(
 	ctx context.Context,
-	data email.TransactionalData,
-	sender email.TransactionalSender,
+	data postmand.TransactionalData,
+	sender postmand.TransactionalSender,
 ) error {
-	err := email.SendTransactional(ctx, data, sender)
+	err := postmand.SendTransactional(ctx, data, sender)
 	if err != nil {
 		telemetry.Error(ctx, "send transactional email failed", "error", err)
-		if !email.IsRetryable(err) {
+		if !postmand.IsRetryable(err) {
 			return river.JobCancel(telemetry.Fail(ctx, err))
 		}
 
@@ -82,10 +82,10 @@ func SendTransactional(
 // SendMarketingEmailWorker delivers a marketing email.
 type SendMarketingEmailWorker struct {
 	river.WorkerDefaults[SendMarketingEmailArgs]
-	sender email.MarketingSender
+	sender postmand.MarketingSender
 }
 
-func NewSendMarketingEmailWorker(sender email.MarketingSender) *SendMarketingEmailWorker {
+func NewSendMarketingEmailWorker(sender postmand.MarketingSender) *SendMarketingEmailWorker {
 	return &SendMarketingEmailWorker{
 		sender: sender,
 	}
@@ -95,9 +95,9 @@ func (w *SendMarketingEmailWorker) Work(
 	ctx context.Context,
 	job *river.Job[SendMarketingEmailArgs],
 ) error {
-	err := email.SendMarketing(ctx, job.Args.Data, w.sender)
+	err := postmand.SendMarketing(ctx, job.Args.Data, w.sender)
 	if err != nil {
-		if !email.IsRetryable(err) {
+		if !postmand.IsRetryable(err) {
 			return river.JobCancel(err)
 		}
 

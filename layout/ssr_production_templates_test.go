@@ -48,9 +48,8 @@ func TestGeneratedLivenessIsProcessOnly(t *testing.T) {
 }
 
 func TestGeneratedRootTitleIsFallbackOnlyWithoutSSR(t *testing.T) {
-	assertTemplateContains(t, "inertia_framework_root.tmpl",
-		"if data.SSR == nil {",
-		"<title>{ data.ProjectName }</title>",
+	assertTemplateContains(t, "resources_root_html.tmpl",
+		"{{if not .SSR}}<title>{{.ProjectName}}</title>{{end}}",
 	)
 }
 
@@ -74,7 +73,7 @@ func TestGeneratedQueueLoadsOnlyWorkerConfig(t *testing.T) {
 
 func TestGeneratedProductionLikeRunCanLogEmail(t *testing.T) {
 	assertTemplateContains(t, "config_email.tmpl", `LogDriver MailDriver = "log"`)
-	assertTemplateContains(t, "runtime_runtime.tmpl", "email.NewLog(slog.Default())")
+	assertTemplateContains(t, "runtime_runtime.tmpl", "postmand.NewLog(slog.Default())")
 	assertTemplateContains(t, "readme.tmpl",
 		"EMAIL_PROVIDER=log",
 		"logs each message instead of sending it and is allowed in",
