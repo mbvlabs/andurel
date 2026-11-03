@@ -1,4 +1,4 @@
-// Package inertia implements the Inertia v3 protocol for anduin and templ.
+// Package inertia implements the Inertia v3 protocol for anduin.
 package inertia
 
 import (
@@ -33,7 +33,7 @@ type FlashProvider func(context.Context) any
 // Option configures a Renderer.
 type Option func(*Renderer) error
 
-// Renderer implements the Inertia v3 server protocol for anduin and templ.
+// Renderer implements the Inertia v3 server protocol for anduin.
 type Renderer struct {
 	root                RootFunc
 	containerID         string
@@ -432,7 +432,8 @@ func (p *PageBuilder) Render() error {
 		}
 	}
 
-	root := renderer.root(RootData{
+	var document bytes.Buffer
+	if err := renderer.root(&document, RootData{
 		Page:        page,
 		PageJSON:    pageJSON,
 		ContainerID: renderer.containerID,
@@ -441,20 +442,7 @@ func (p *PageBuilder) Render() error {
 		ViteHead:    template.HTML(renderer.viteTags.head),
 		ViteBody:    template.HTML(renderer.viteTags.body),
 		SSR:         ssrResponse,
-	})
-	if root == nil {
-		return &Error{
-			Kind:      ErrorRoot,
-			Operation: "construct",
-			Component: component,
-			Method:    method,
-			URL:       page.URL,
-			Err:       fmt.Errorf("root returned nil component"),
-		}
-	}
-
-	var document bytes.Buffer
-	if err := root.Render(anduin.Request(ctx).Context(), &document); err != nil {
+	}); err != nil {
 		return &Error{
 			Kind:      ErrorRoot,
 			Operation: "render",

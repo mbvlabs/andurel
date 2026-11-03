@@ -16,7 +16,7 @@ func TestSSRDefaultRendersInitialDocumentWithoutPageOptIn(t *testing.T) {
 		Body: `<div data-server-rendered="true" data-page="app">ssr</div>`,
 	}}
 	renderer, err := newTestRenderer(
-		WithRoot(testRoot(&captured)),
+		WithRootFunc(testRoot(&captured)),
 		WithSSRRenderer(ssr),
 		WithSSRDefault(true),
 	)
@@ -43,7 +43,7 @@ func TestSSRDefaultKeepsInertiaJSONVisitsClientSide(t *testing.T) {
 		Body: `<div data-server-rendered="true" data-page="app">ssr</div>`,
 	}}
 	renderer, err := newTestRenderer(
-		WithRoot(testRoot(&captured)),
+		WithRootFunc(testRoot(&captured)),
 		WithSSRRenderer(ssr),
 		WithSSRDefault(true),
 	)
@@ -71,7 +71,7 @@ func TestPageCSROptsOutOfRendererSSRDefault(t *testing.T) {
 		Body: `<div data-server-rendered="true" data-page="app">ssr</div>`,
 	}}
 	renderer, err := newTestRenderer(
-		WithRoot(testRoot(&captured)),
+		WithRootFunc(testRoot(&captured)),
 		WithSSRRenderer(ssr),
 		WithSSRDefault(true),
 	)
@@ -98,7 +98,7 @@ func TestPageSSRWinsOverCSR(t *testing.T) {
 		Body: `<div data-server-rendered="true" data-page="app">ssr</div>`,
 	}}
 	renderer, err := newTestRenderer(
-		WithRoot(testRoot(&captured)),
+		WithRootFunc(testRoot(&captured)),
 		WithSSRRenderer(ssr),
 		WithSSRDefault(true),
 	)
@@ -122,7 +122,7 @@ func TestSSRDefaultOffKeepsPageOptIn(t *testing.T) {
 	ssr := &fakeSSRRenderer{response: &SSRResponse{
 		Body: `<div data-server-rendered="true" data-page="app">ssr</div>`,
 	}}
-	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)), WithSSRRenderer(ssr))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(&captured)), WithSSRRenderer(ssr))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -174,7 +174,7 @@ func TestSSRDefaultUsesTheEnvironmentTransport(t *testing.T) {
 			SSRTimeout:          2 * time.Second,
 			SSRMaxResponseBytes: 2 << 20,
 		},
-		WithRoot(testRoot(&developmentRoot)),
+		WithRootFunc(testRoot(&developmentRoot)),
 		WithEnvironment("development"),
 		WithSSRDefault(true),
 	)
@@ -205,7 +205,7 @@ func TestSSRDefaultUsesTheEnvironmentTransport(t *testing.T) {
 			SSRTimeout:          2 * time.Second,
 			SSRMaxResponseBytes: 2 << 20,
 		},
-		WithRoot(testRoot(&productionRoot)),
+		WithRootFunc(testRoot(&productionRoot)),
 		WithAssetFS(fstest.MapFS{
 			"dist/vite/manifest.json": &fstest.MapFile{Data: []byte(
 				`{"resources/js/app.ts":{"file":"app-abc.js","css":[]}}`,

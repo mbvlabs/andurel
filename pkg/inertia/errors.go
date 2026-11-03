@@ -1,4 +1,4 @@
-// Package inertia implements the Inertia v3 protocol for anduin and templ.
+// Package inertia implements the Inertia v3 protocol for anduin.
 package inertia
 
 import "fmt"
