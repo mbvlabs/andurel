@@ -125,7 +125,7 @@ func runEmailRenderWatch(cmd *cobra.Command, rootDir, name string, openGallery b
 		if err := json.Unmarshal(bytes.TrimSpace(stdout.Bytes()), &report); err != nil {
 			return fmt.Errorf("decode email render report: %w", err)
 		}
-		fmt.Fprintf(
+		_, _ = fmt.Fprintf(
 			out,
 			"rendered %s in %s\n",
 			emailPreviewCount(len(report.Emails)),
@@ -163,7 +163,7 @@ func runEmailRenderWatch(cmd *cobra.Command, rootDir, name string, openGallery b
 		_ = fsWatcher.Close()
 	}()
 
-	fmt.Fprintln(out, "watching emails/ and emails/templates/; press Ctrl-C to stop")
+	_, _ = fmt.Fprintln(out, "watching emails/ and emails/templates/; press Ctrl-C to stop")
 
 	syncEmails := func(ctx context.Context) error {
 		start := time.Now()
@@ -174,7 +174,7 @@ func runEmailRenderWatch(cmd *cobra.Command, rootDir, name string, openGallery b
 		if err := runEmailsExport(ctx, rootDir, &exportOutput, &exportOutput); err != nil {
 			return emailWatchError("sync emails", err, exportOutput.String())
 		}
-		fmt.Fprintf(
+		_, _ = fmt.Fprintf(
 			out,
 			"synced email templates in %s\n",
 			formatEmailElapsed(time.Since(start)),
@@ -267,7 +267,7 @@ func runEmailRenderWatchLoop(
 			if !ok {
 				return nil
 			}
-			fmt.Fprintf(errOut, "email watcher: %v\n", watchErr)
+			_, _ = fmt.Fprintf(errOut, "email watcher: %v\n", watchErr)
 		case event, ok := <-fsWatcher.Events:
 			if !ok {
 				return nil
@@ -275,7 +275,7 @@ func runEmailRenderWatchLoop(
 			if event.Has(fsnotify.Create) {
 				if info, err := os.Stat(event.Name); err == nil && info.IsDir() {
 					if _, err := addEmailRenderWatchTree(fsWatcher, event.Name, rootDir); err != nil {
-						fmt.Fprintf(errOut, "email watcher: %v\n", err)
+						_, _ = fmt.Fprintf(errOut, "email watcher: %v\n", err)
 					}
 				}
 			}
@@ -301,7 +301,7 @@ func runEmailRenderWatchLoop(
 					if ctx.Err() != nil {
 						return nil
 					}
-					fmt.Fprintf(errOut, "email sync failed: %v\n", err)
+					_, _ = fmt.Fprintf(errOut, "email sync failed: %v\n", err)
 					continue
 				}
 			}
@@ -309,7 +309,7 @@ func runEmailRenderWatchLoop(
 				if ctx.Err() != nil {
 					return nil
 				}
-				fmt.Fprintf(errOut, "email render failed: %v\n", err)
+				_, _ = fmt.Fprintf(errOut, "email render failed: %v\n", err)
 			}
 		}
 	}
