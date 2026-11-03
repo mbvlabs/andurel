@@ -2,6 +2,7 @@ package upgrade
 
 import (
 	"context"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,8 +27,9 @@ const (
 	upgradeE2ECandidateVersion = "v2.0.0-rc.1"
 
 	// The rc.1 candidate publishes these framework package pins.
-	upgradeE2ECandidateAnduinVersion  = "v0.8.0"
-	upgradeE2ECandidateInertiaVersion = "v0.14.1"
+	upgradeE2ECandidateAnduinVersion   = "v0.8.0"
+	upgradeE2ECandidateInertiaVersion  = "v0.14.1"
+	upgradeE2ECandidatePostmandVersion = "v0.1.0"
 )
 
 // upgradeE2ECases covers the existing released beta.4 -> beta.5 regression and
@@ -61,8 +63,10 @@ var upgradeE2ECases = []struct {
 
 // TestUpgradeToHEAD scaffolds with each released CLI in upgradeE2ECases,
 // upgrades the result with this checkout, and requires the result to build and
-// vet cleanly without manual actions. The candidate cases additionally require
-// the rc.1 manifest metadata and current published package pins.
+// vet cleanly. Candidate cases first apply the documented rc.1
+// pkg/email -> pkg/postmand import migration because the module removal is a
+// deliberate pre-rc breaking change. They additionally require the rc.1
+// manifest metadata and current published package pins.
 //
 // The test downloads the released CLI and modules, so it only runs in nightly
 // and release-readiness. Set ANDUREL_UPGRADE_E2E=1 to enable it.
@@ -143,6 +147,13 @@ func testUpgradeToTarget(
 		t.Fatalf("upgrade %s to %s reported manual actions: %#v", source, target, report.ManualActions)
 	}
 
+	if verifyCandidate {
+		// rc.1 removes pkg/email. Upgrade deliberately does not rewrite
+		// application-owned Go code, so the candidate test applies the import
+		// rewrite the release notes prescribe before tidy and build.
+		migrateLegacyEmailImports(t, root)
+	}
+
 	if localPkg {
 		replaceWithLocalPackages(t, root)
 	}
@@ -196,6 +207,10 @@ func assertCandidateProject(t *testing.T, root string, target string) {
 			path:    "github.com/mbvlabs/andurel/pkg/inertia",
 			version: upgradeE2ECandidateInertiaVersion,
 		},
+		{
+			path:    "github.com/mbvlabs/andurel/pkg/postmand",
+			version: upgradeE2ECandidatePostmandVersion,
+		},
 	} {
 		if got := required[pin.path]; got != pin.version {
 			t.Errorf("go.mod pin %s = %q, want %q", pin.path, got, pin.version)
@@ -204,6 +219,57 @@ func assertCandidateProject(t *testing.T, root string, target string) {
 	if len(file.Replace) != 0 {
 		t.Fatalf("go.mod has local replace directives after candidate upgrade: %#v", file.Replace)
 	}
+}
+
+// migrateLegacyEmailImports applies the documented rc.1 breaking migration to
+// application-owned Go files. The upgrade does not rewrite application code;
+// this helper mirrors the release-note import rewrite so the candidate E2E
+// asserts the post-migration app rather than pretending the removed pkg/email
+// types remain compatible with pkg/storage v0.16.0.
+func migrateLegacyEmailImports(t *testing.T, root string) {
+	t.Helper()
+
+	const (
+		legacy      = `"github.com/mbvlabs/andurel/pkg/email"`
+		replacement = `"github.com/mbvlabs/andurel/pkg/postmand"`
+	)
+
+	migrated := 0
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			switch entry.Name() {
+			case ".git", "vendor":
+				return filepath.SkipDir
+			default:
+				return nil
+			}
+		}
+		if !strings.HasSuffix(entry.Name(), ".go") {
+			return nil
+		}
+
+		content, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		updated := strings.ReplaceAll(string(content), legacy, replacement)
+		if updated == string(content) {
+			return nil
+		}
+		if writeErr := os.WriteFile(path, []byte(updated), 0o644); writeErr != nil {
+			return writeErr
+		}
+		migrated++
+
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("migrate legacy pkg/email imports: %v", err)
+	}
+	t.Logf("applied documented pkg/email -> pkg/postmand import migration to %d files", migrated)
 }
 
 // replaceWithLocalPackages points every pkg/* module in the upgraded project at

@@ -36,8 +36,6 @@ const (
 	Lifecycle = "v0.1.1"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
 	Inertia = "v0.14.1"
-	// Email is the deprecated standalone Andurel email module version verified with this framework.
-	Email = "v0.7.0"
 	// Postmand is the standalone Andurel email module version verified with this framework.
 	Postmand = "v0.1.0"
 	// Env is the standalone Andurel environment module version verified with this framework.
@@ -59,7 +57,6 @@ var verifiedPackageVersions = map[string]string{
 	PkgPrefix + "anduin":     Anduin,
 	PkgPrefix + "auth":       Auth,
 	PkgPrefix + "cache":      Cache,
-	PkgPrefix + "email":      Email,
 	PkgPrefix + "env":        Env,
 	PkgPrefix + "inertia":    Inertia,
 	PkgPrefix + "kiks":       Kiks,

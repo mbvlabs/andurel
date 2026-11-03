@@ -40,7 +40,6 @@ var andurelPackageResponsibilities = map[string]string{
 	"anduin":     "HTTP router, middleware, handlers, host dispatch, and server primitives",
 	"auth":       "Password hashing and authentication token primitives",
 	"cache":      "Cache store abstraction and swappable drivers",
-	"email":      "Deprecated email composition, providers, and delivery (use postmand)",
 	"env":        ".env loading and typed environment-variable reads",
 	"inertia":    "Inertia protocol renderer, SSR client and runtime, and error mapping",
 	"kiks":       "Cookies, sessions, and flash messages",
