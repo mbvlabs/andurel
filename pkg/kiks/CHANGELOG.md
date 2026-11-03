@@ -6,6 +6,8 @@ All notable changes to the standalone Andurel kiks module are documented here.
 
 ### Changed
 
+- `FlashMessage` no longer refers to templ, which Andurel removed; the contract
+  is used by Inertia pages.
 - Documented the kiks persistence contract under anduin's coordinated error
   lifecycle: an `ErrorHandler` can read the request bag and persist session and
   flash mutations with the final error status (409/3xx flashes, 403 clears, and

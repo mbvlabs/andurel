@@ -11,8 +11,8 @@ import (
 func TestDiagnosticCopyToolsCopiesOnlySelectedBinaries(t *testing.T) {
 	project := t.TempDir()
 	writeTestFile(t, project, "go.mod", "module example.com/app\n")
-	writeTestFile(t, project, "resources/root.templ", "package resources\n")
-	writeExecutable(t, project, "bin/templ", "#!/bin/sh\necho templ\n")
+	writeTestFile(t, project, "resources/root.goose", "package resources\n")
+	writeExecutable(t, project, "bin/goose", "#!/bin/sh\necho goose\n")
 	writeExecutable(t, project, "bin/tailwindcli", "#!/bin/sh\necho tailwind\n")
 	writeExecutable(t, project, "bin/narsilc", "#!/bin/sh\necho narsilc\n")
 	writeExecutable(t, project, "bin/usql", "#!/bin/sh\necho usql\n")
@@ -22,7 +22,7 @@ func TestDiagnosticCopyToolsCopiesOnlySelectedBinaries(t *testing.T) {
 
 	err := withDiagnosticProjectCopyTools(
 		project,
-		[]string{"templ", "tailwindcli"},
+		[]string{"goose", "tailwindcli"},
 		func(copyRoot string) error {
 			binInfo, err := os.Lstat(filepath.Join(copyRoot, "bin"))
 			if err != nil {
@@ -34,7 +34,7 @@ func TestDiagnosticCopyToolsCopiesOnlySelectedBinaries(t *testing.T) {
 			if got := binInfo.Mode().Perm(); got != 0o750 {
 				t.Fatalf("copied bin permissions = %o, want 750", got)
 			}
-			for _, name := range []string{"templ", "tailwindcli"} {
+			for _, name := range []string{"goose", "tailwindcli"} {
 				copiedPath := filepath.Join(copyRoot, "bin", name)
 				info, err := os.Lstat(copiedPath)
 				if err != nil {
@@ -63,7 +63,7 @@ func TestDiagnosticCopyToolsCopiesOnlySelectedBinaries(t *testing.T) {
 					t.Fatalf("unselected %s stat error = %v, want not exist", name, err)
 				}
 			}
-			if _, err := os.Stat(filepath.Join(copyRoot, "resources", "root.templ")); err != nil {
+			if _, err := os.Stat(filepath.Join(copyRoot, "resources", "root.goose")); err != nil {
 				t.Fatalf("non-bin project file was not copied: %v", err)
 			}
 			return nil
@@ -131,30 +131,30 @@ func TestDiagnosticCopyToolsMutationsDoNotReachOriginalTools(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(project, "bin"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	writeExecutable(t, external, "templ", "#!/bin/sh\necho external templ\n")
-	templTarget := filepath.Join(external, "templ")
-	if err := os.Symlink(templTarget, filepath.Join(project, "bin", "templ")); err != nil {
+	writeExecutable(t, external, "goose", "#!/bin/sh\necho external goose\n")
+	gooseTarget := filepath.Join(external, "goose")
+	if err := os.Symlink(gooseTarget, filepath.Join(project, "bin", "goose")); err != nil {
 		t.Fatal(err)
 	}
 	writeExecutable(t, project, "bin/tailwindcli", "#!/bin/sh\necho project tailwind\n")
 
-	before, err := os.ReadFile(templTarget)
+	before, err := os.ReadFile(gooseTarget)
 	if err != nil {
 		t.Fatal(err)
 	}
 	err = withDiagnosticProjectCopyTools(
 		project,
-		[]string{"templ", "tailwindcli"},
+		[]string{"goose", "tailwindcli"},
 		func(copyRoot string) error {
-			copiedTempl := filepath.Join(copyRoot, "bin", "templ")
-			info, err := os.Lstat(copiedTempl)
+			copiedGoose := filepath.Join(copyRoot, "bin", "goose")
+			info, err := os.Lstat(copiedGoose)
 			if err != nil {
 				return err
 			}
 			if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
-				t.Fatalf("copied templ mode = %s, want independent regular file", info.Mode())
+				t.Fatalf("copied goose mode = %s, want independent regular file", info.Mode())
 			}
-			if err := os.WriteFile(copiedTempl, []byte("changed copy\n"), 0o755); err != nil {
+			if err := os.WriteFile(copiedGoose, []byte("changed copy\n"), 0o755); err != nil {
 				return err
 			}
 			return os.WriteFile(
@@ -168,7 +168,7 @@ func TestDiagnosticCopyToolsMutationsDoNotReachOriginalTools(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	after, err := os.ReadFile(templTarget)
+	after, err := os.ReadFile(gooseTarget)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,14 +191,14 @@ func TestDiagnosticCopyToolsDereferencesSymlinkedBin(t *testing.T) {
 	if err := os.MkdirAll(project, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	writeExecutable(t, externalBin, "templ", "#!/bin/sh\necho external templ\n")
+	writeExecutable(t, externalBin, "goose", "#!/bin/sh\necho external goose\n")
 	writeExecutable(t, externalBin, "unused", "#!/bin/sh\necho external unused\n")
 	if err := os.Symlink(externalBin, filepath.Join(project, "bin")); err != nil {
 		t.Fatal(err)
 	}
 
 	before := snapshotAllTestFiles(t, externalBin)
-	err := withDiagnosticProjectCopyTools(project, []string{"templ"}, func(copyRoot string) error {
+	err := withDiagnosticProjectCopyTools(project, []string{"goose"}, func(copyRoot string) error {
 		copiedBin := filepath.Join(copyRoot, "bin")
 		info, err := os.Lstat(copiedBin)
 		if err != nil {
@@ -207,17 +207,17 @@ func TestDiagnosticCopyToolsDereferencesSymlinkedBin(t *testing.T) {
 		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
 			t.Fatalf("copied bin mode = %s, want independent directory", info.Mode())
 		}
-		templInfo, err := os.Lstat(filepath.Join(copiedBin, "templ"))
+		gooseInfo, err := os.Lstat(filepath.Join(copiedBin, "goose"))
 		if err != nil {
 			return err
 		}
-		if templInfo.Mode()&os.ModeSymlink != 0 || !templInfo.Mode().IsRegular() {
-			t.Fatalf("copied templ mode = %s, want regular file", templInfo.Mode())
+		if gooseInfo.Mode()&os.ModeSymlink != 0 || !gooseInfo.Mode().IsRegular() {
+			t.Fatalf("copied goose mode = %s, want regular file", gooseInfo.Mode())
 		}
 		if _, err := os.Lstat(filepath.Join(copiedBin, "unused")); !os.IsNotExist(err) {
 			t.Fatalf("unselected external tool stat error = %v, want not exist", err)
 		}
-		return os.WriteFile(filepath.Join(copiedBin, "templ"), []byte("changed\n"), 0o755)
+		return os.WriteFile(filepath.Join(copiedBin, "goose"), []byte("changed\n"), 0o755)
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -229,13 +229,13 @@ func TestDiagnosticCopyToolsDereferencesSymlinkedBin(t *testing.T) {
 
 func TestDiagnosticCopyToolsSkipsUnselectedBrokenLinks(t *testing.T) {
 	project := t.TempDir()
-	writeExecutable(t, project, "bin/templ", "#!/bin/sh\nexit 0\n")
+	writeExecutable(t, project, "bin/goose", "#!/bin/sh\nexit 0\n")
 	if err := os.Symlink("missing-target", filepath.Join(project, "bin", "unused")); err != nil {
 		t.Fatal(err)
 	}
 
-	err := withDiagnosticProjectCopyTools(project, []string{"templ"}, func(copyRoot string) error {
-		if _, err := os.Stat(filepath.Join(copyRoot, "bin", "templ")); err != nil {
+	err := withDiagnosticProjectCopyTools(project, []string{"goose"}, func(copyRoot string) error {
+		if _, err := os.Stat(filepath.Join(copyRoot, "bin", "goose")); err != nil {
 			return err
 		}
 		if _, err := os.Lstat(filepath.Join(copyRoot, "bin", "unused")); !os.IsNotExist(err) {
@@ -254,13 +254,13 @@ func TestDiagnosticCopyToolsRejectsBrokenSelectedLinksAndCycles(t *testing.T) {
 		if err := os.MkdirAll(filepath.Join(project, "bin"), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.Symlink("missing-target", filepath.Join(project, "bin", "templ")); err != nil {
+		if err := os.Symlink("missing-target", filepath.Join(project, "bin", "goose")); err != nil {
 			t.Fatal(err)
 		}
-		err := withDiagnosticProjectCopyTools(project, []string{"templ"}, func(string) error {
+		err := withDiagnosticProjectCopyTools(project, []string{"goose"}, func(string) error {
 			return nil
 		})
-		if err == nil || !strings.Contains(err.Error(), "templ") {
+		if err == nil || !strings.Contains(err.Error(), "goose") {
 			t.Fatalf("broken selected link error = %v", err)
 		}
 	})
@@ -270,10 +270,10 @@ func TestDiagnosticCopyToolsRejectsBrokenSelectedLinksAndCycles(t *testing.T) {
 		if err := os.MkdirAll(filepath.Join(project, "bin"), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.Symlink(".", filepath.Join(project, "bin", "templ")); err != nil {
+		if err := os.Symlink(".", filepath.Join(project, "bin", "goose")); err != nil {
 			t.Fatal(err)
 		}
-		err := withDiagnosticProjectCopyTools(project, []string{"templ"}, func(string) error {
+		err := withDiagnosticProjectCopyTools(project, []string{"goose"}, func(string) error {
 			return nil
 		})
 		if err == nil || !strings.Contains(err.Error(), "cycle") {
@@ -284,11 +284,11 @@ func TestDiagnosticCopyToolsRejectsBrokenSelectedLinksAndCycles(t *testing.T) {
 
 func TestDiagnosticCopyFullModeStillCopiesEveryBinary(t *testing.T) {
 	project := t.TempDir()
-	writeExecutable(t, project, "bin/templ", "#!/bin/sh\nexit 0\n")
+	writeExecutable(t, project, "bin/goose", "#!/bin/sh\nexit 0\n")
 	writeExecutable(t, project, "bin/unused", "#!/bin/sh\nexit 0\n")
 
 	err := withDiagnosticProjectCopy(project, func(copyRoot string) error {
-		for _, name := range []string{"templ", "unused"} {
+		for _, name := range []string{"goose", "unused"} {
 			if _, err := os.Stat(filepath.Join(copyRoot, "bin", name)); err != nil {
 				t.Fatalf("full copy omitted %s: %v", name, err)
 			}

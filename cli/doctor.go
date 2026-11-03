@@ -113,7 +113,7 @@ This command will check:
   • Configuration (andurel.lock, first-run setup, Inertia SSR readiness, narsilc generator/runtime alignment)
   • Manual actions (static applied / not applied / not applicable status for application-owned upgrade actions, by stable action ID)
   • Code quality (go vet, go mod tidy)
-  • Code generation (templ, email templates, narsilc, and Inertia route helpers and payload types when configured)
+  • Code generation (email templates, narsilc, and Inertia route helpers and payload types when configured)
 
 A check that cannot run is reported as skipped, never as a pass.`,
 		Example: `  andurel doctor
@@ -135,7 +135,7 @@ A check that cannot run is reported as skipped, never as a pass.`,
 	setAgentMetadata(
 		doctorCmd,
 		"diagnostics",
-		"Read-only project checks include first-run setup, Inertia SSR readiness, the applied/not_applied/not_applicable state of application-owned upgrade actions by stable ID, templ, email templates, active narsilc queries, and Inertia route helper and payload type drift. Manual actions that are not applied warn; a check that could not run is reported as skipped. Use --json for actionable check hints.",
+		"Read-only project checks include first-run setup, Inertia SSR readiness, the applied/not_applied/not_applicable state of application-owned upgrade actions by stable ID, email templates, active narsilc queries, and Inertia route helper and payload type drift. Manual actions that are not applied warn; a check that could not run is reported as skipped. Use --json for actionable check hints.",
 	)
 
 	return doctorCmd
@@ -289,8 +289,6 @@ func doctorHint(result checkResult) string {
 		return "Run go vet ./... and fix the reported issues."
 	case "go mod tidy":
 		return "Run go mod tidy and commit the resulting go.mod or go.sum changes."
-	case "templ generate":
-		return "Commit the generated *_templ.go output (andurel build regenerates it) and fix any template errors."
 	case "emails export":
 		return "Run andurel sync emails and commit the updated emails/generated and emails/templates files."
 	case "narsilc generate":
@@ -1331,71 +1329,6 @@ func readOptionalFile(path string) ([]byte, error) {
 	return content, err
 }
 
-func checkTemplGenerate(rootDir string, verbose bool) checkResult {
-	templPath := filepath.Join(rootDir, "bin", "templ")
-	if _, err := os.Stat(templPath); err != nil {
-		return checkResult{
-			name:        "templ generate",
-			status:      statusWarn,
-			message:     "templ binary not found (skipping check)",
-			missingTool: "templ",
-		}
-	}
-
-	var changed []string
-	err := withDiagnosticProjectCopyTools(rootDir, []string{"templ"}, func(tempRoot string) error {
-		before, err := snapshotFilesForReport(tempRoot)
-		if err != nil {
-			return err
-		}
-		cmd := exec.Command(filepath.Join(tempRoot, "bin", "templ"), templGenerateArgs...)
-		cmd.Dir = tempRoot
-		var stdout, stderr bytes.Buffer
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf(
-				"templ generate failed: %w: %s",
-				err,
-				strings.TrimSpace(stderr.String()),
-			)
-		}
-		after, err := snapshotFilesForReport(tempRoot)
-		if err != nil {
-			return err
-		}
-		changed = changedSnapshotPaths(before, after)
-		return nil
-	})
-	if err != nil {
-		return checkResult{
-			name:    "templ generate",
-			status:  statusFail,
-			message: "temporary generation diagnostic failed",
-			details: []string{err.Error()},
-		}
-	}
-	if len(changed) > 0 {
-		details := []string{"Commit the generated *_templ.go output; andurel build regenerates it."}
-		if verbose {
-			details = append(details, changed...)
-		}
-		return checkResult{
-			name:    "templ generate",
-			status:  statusFail,
-			message: "generated templates are out of date",
-			details: details,
-			changed: changed,
-		}
-	}
-
-	return checkResult{
-		name:    "templ generate",
-		status:  statusPass,
-		message: "templates generated successfully",
-	}
-}
-
 // checkEmailsExport compares emails/generated props/manifest and the committed
 // emails/templates to a fresh generation and export. The export needs installed
 // frontend dependencies, so a project without node_modules reports a skip with
@@ -1664,7 +1597,6 @@ func changedSnapshotPaths(before, after fileSnapshot) []string {
 
 func codeGenerationChecks(rootDir string, verbose bool) []checkResult {
 	results := []checkResult{
-		checkTemplGenerate(rootDir, verbose),
 		checkEmailsExport(rootDir, verbose),
 		checkNarsilcGenerate(rootDir, verbose),
 	}

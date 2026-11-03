@@ -1,5 +1,43 @@
 ## Unreleased
 
+## 0.15.0 - 2026-11-03
+
+### Breaking
+
+- The package no longer depends on `github.com/a-h/templ`. `WithRoot` now takes
+  an `*html/template.Template`, `RootData` keeps its original field types, and
+  `RootData.PageScript`, `.AppMount`, `.SSRHead`, and `.SSRBody` return
+  pre-rendered `template.HTML` fragments for the root document. The legacy
+  `inertia.PageScript`/`AppMount`/`SSRHead`/`SSRBody` component helpers and the
+  component-based `RootFunc` are gone. `WithRootFunc` exists only for custom
+  non-template document renderers.
+
+  Migration: replace `resources/root.templ` with `resources/root.html`:
+
+  ```html
+  <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">{{if not .SSR}}<title>{{.ProjectName}}</title>{{end}}{{.SSRHead}}{{.ViteHead}}</head><body class="bg-background text-foreground">{{if .SSR}}{{.SSRBody}}{{else}}{{.PageScript}} {{.AppMount}}{{end}}{{.ViteBody}}</body></html>
+  ```
+
+  and `resources/root_templ.go` with `resources/root.go`:
+
+  ```go
+  package resources
+
+  import (
+      "embed"
+      "html/template"
+  )
+
+  //go:embed root.html
+  var files embed.FS
+
+  var Root = template.Must(template.New("root.html").ParseFS(files, "root.html"))
+  ```
+
+  Wire it with `inertia.WithRoot(resources.Root)`. Remove templ from the go.mod
+  tool directive and `andurel.lock`; old compiled roots must be migrated by
+  hand.
+
 ## 0.14.1 - 2026-11-02
 
 - Commit a router-rendered error page for an Inertia visit instead of discarding

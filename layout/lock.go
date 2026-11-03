@@ -100,7 +100,6 @@ type Tool struct {
 
 var defaultToolVersionChecks = map[string]VersionCheck{
 	"narsilc":     {Args: []string{"version"}},
-	"templ":       {Args: []string{"--version"}},
 	"goose":       {Args: []string{"--version"}},
 	"mailpit":     {Args: []string{"version", "--no-release-check"}},
 	"usql":        {Args: []string{"--version"}},
@@ -112,7 +111,6 @@ const defaultVersionCheckRegexp = `v?([0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]
 
 var defaultToolVersions = map[string]string{
 	"narsilc":     versions.Narsilc,
-	"templ":       versions.Templ,
 	"goose":       versions.Goose,
 	"mailpit":     versions.Mailpit,
 	"usql":        versions.Usql,
@@ -130,17 +128,6 @@ var defaultToolDownloads = map[string]ToolDownload{
 			"linux/arm64":  "acd110d0fb533bff768218880a2f21ca912a5df9c9baf27a7832122952ca52a4",
 			"darwin/amd64": "2ec77193c74a99d8b3c0027ef63a64ea36396280ecc372c9d89bf132d9d32b02",
 			"darwin/arm64": "fbe47d6ed74c8dab4c16c511f7a5b8e491afac673769207c9a8460d05aaf0011",
-		},
-	},
-	"templ": {
-		URLTemplate: "https://github.com/a-h/templ/releases/download/{{version}}/templ_{{os_capitalized}}_{{arch_x86_64}}.tar.gz",
-		Archive:     "tar.gz",
-		BinaryName:  "templ",
-		SHA256: map[string]string{
-			"linux/amd64":  "d1e726e8e78a6cf7e1e72ce3746f30fd94ec0eba10be1abab02208a41efc9aa5",
-			"linux/arm64":  "8d38728fa82c0ee568d2ae1ce0720963402d384dd59d4c76bcdbb38d581c815c",
-			"darwin/amd64": "f1522f2558081335584fd4fb67d329d02a9ae6e83dd88b14cae1ad84c770e5c0",
-			"darwin/arm64": "f391943e3e49ece301f90c2283c7f9e629081f18b0b3ab6b48cb4b87ad94b206",
 		},
 	},
 	"goose": {

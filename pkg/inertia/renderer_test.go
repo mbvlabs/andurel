@@ -12,7 +12,6 @@ import (
 	"testing/fstest"
 	"time"
 
-	"github.com/a-h/templ"
 	"github.com/mbvlabs/andurel/pkg/anduin"
 )
 
@@ -55,16 +54,32 @@ func (renderer *fakeSSRRenderer) Render(context.Context, Page) (*SSRResponse, er
 }
 
 func testRoot(captured *RootData) RootFunc {
-	return func(data RootData) templ.Component {
-		*captured = data
-		return templ.ComponentFunc(func(_ context.Context, writer io.Writer) error {
-			if data.SSR != nil {
-				_, err := io.WriteString(writer, data.SSR.Body)
-				return err
-			}
-			_, err := io.WriteString(writer, "client")
+	return func(writer io.Writer, data RootData) error {
+		if captured != nil {
+			*captured = data
+		}
+		if data.SSR != nil {
+			_, err := io.WriteString(writer, string(data.SSRBody()))
 			return err
-		})
+		}
+		_, err := io.WriteString(writer, "client")
+		return err
+	}
+}
+
+// pageScriptRoot renders only the page script, matching the smallest root a
+// project can configure.
+func pageScriptRoot(captured *RootData) RootFunc {
+	return func(writer io.Writer, data RootData) error {
+		if captured != nil {
+			*captured = data
+		}
+		script, err := data.PageScript()
+		if err != nil {
+			return err
+		}
+		_, err = io.WriteString(writer, string(script))
+		return err
 	}
 }
 
@@ -74,7 +89,7 @@ func TestWithSSRContactsRendererOnlyForInitialDocument(t *testing.T) {
 		Head: []string{"<title>SSR</title>"},
 		Body: `<div data-server-rendered="true" data-page="app">SSR</div>`,
 	}}
-	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)), WithSSRRenderer(ssr))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(&captured)), WithSSRRenderer(ssr))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -108,7 +123,7 @@ func TestSSRFailureFallsBackUnlessFailFast(t *testing.T) {
 	var captured RootData
 	ssrErr := errors.New("renderer unavailable")
 	ssr := &fakeSSRRenderer{err: ssrErr}
-	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)), WithSSRRenderer(ssr))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(&captured)), WithSSRRenderer(ssr))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -127,7 +142,7 @@ func TestSSRFailureFallsBackUnlessFailFast(t *testing.T) {
 	}
 
 	renderer, err = newTestRenderer(
-		WithRoot(testRoot(&captured)),
+		WithRootFunc(testRoot(&captured)),
 		WithSSRRenderer(ssr),
 		WithSSRFailFast(true),
 	)
@@ -144,22 +159,31 @@ func TestSSRFailureFallsBackUnlessFailFast(t *testing.T) {
 }
 
 func TestPageScriptEscapesClosingScript(t *testing.T) {
-	var output strings.Builder
-	component := PageScript("app", []byte(`{"value":"</script>"}`))
-	if err := component.Render(context.Background(), &output); err != nil {
-		t.Fatalf("Render: %v", err)
+	output, err := (RootData{
+		ContainerID: "app",
+		PageJSON:    []byte(`{"value":"</script>"}`),
+	}).PageScript()
+	if err != nil {
+		t.Fatalf("PageScript: %v", err)
 	}
-	if strings.Contains(output.String(), "</script></script>") ||
-		!strings.Contains(output.String(), `\u003c\/script\u003e`) {
-		t.Fatalf("unsafe page script: %s", output.String())
+	if strings.Contains(string(output), "</script></script>") ||
+		!strings.Contains(string(output), `\u003c\/script\u003e`) {
+		t.Fatalf("unsafe page script: %s", output)
+	}
+}
+
+func TestPageScriptRejectsInvalidJSON(t *testing.T) {
+	if _, err := (RootData{ContainerID: "app", PageJSON: []byte(`{"value":`)}).PageScript(); err == nil {
+		t.Fatal("expected an invalid page JSON error")
+	}
+	if _, err := (RootData{ContainerID: "app", PageJSON: []byte(`{} {}`)}).PageScript(); err == nil {
+		t.Fatal("expected a trailing page JSON error")
 	}
 }
 
 func TestRenderedDocumentCannotBreakOutOfPageScript(t *testing.T) {
 	malicious := `</script><!--<script`
-	renderer, err := newTestRenderer(WithRoot(func(data RootData) templ.Component {
-		return PageScript(data.ContainerID, data.PageJSON)
-	}))
+	renderer, err := newTestRenderer(WithRootFunc(pageScriptRoot(nil)))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -185,7 +209,7 @@ func TestRenderedDocumentCannotBreakOutOfPageScript(t *testing.T) {
 
 func TestInertiaJSONEscapesHTML(t *testing.T) {
 	var captured RootData
-	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(&captured)))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -213,10 +237,7 @@ func TestPageBuilderURLOverridesPageURL(t *testing.T) {
 
 	const pageURL = "/users/confirmation/new"
 	var captured RootData
-	renderer, err := newTestRenderer(WithRoot(func(data RootData) templ.Component {
-		captured = data
-		return PageScript(data.ContainerID, data.PageJSON)
-	}))
+	renderer, err := newTestRenderer(WithRootFunc(pageScriptRoot(&captured)))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -284,7 +305,7 @@ func TestProductionViteTagsUseBuildPathPrefixAndAnonymousCrossOrigin(t *testing.
 			SSRTimeout:          2 * time.Second,
 			SSRMaxResponseBytes: 2 << 20,
 		},
-		WithRoot(testRoot(nil)),
+		WithRootFunc(testRoot(nil)),
 		WithAssetFS(assetFS),
 		WithEnvironment("production"),
 	)

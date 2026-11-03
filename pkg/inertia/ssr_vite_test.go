@@ -103,7 +103,7 @@ func TestNewRendererUsesViteSSRInDevelopment(t *testing.T) {
 			SSRTimeout:          2 * time.Second,
 			SSRMaxResponseBytes: 2 << 20,
 		},
-		WithRoot(testRoot(nil)),
+		WithRootFunc(testRoot(nil)),
 		WithEnvironment("development"),
 	)
 	if err != nil {
@@ -125,7 +125,7 @@ func TestNewRendererUsesViteSSRInDevelopment(t *testing.T) {
 func TestNewRendererKeepsHTTPRendererOutsideDevelopment(t *testing.T) {
 	t.Parallel()
 
-	renderer, err := newTestRenderer(WithRoot(testRoot(nil)))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(nil)))
 	if err != nil {
 		t.Fatal(err)
 	}

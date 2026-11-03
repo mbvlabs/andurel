@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/mbvlabs/andurel/v2/cli/internal/devserver/reload"
-	"github.com/mbvlabs/andurel/v2/cli/internal/devserver/state"
-	"github.com/mbvlabs/andurel/v2/cli/internal/devserver/watcher"
 )
 
 func TestRunProxyServerFailsFastWhenPortInUse(t *testing.T) {
@@ -65,45 +63,5 @@ func TestRunRequiresQueueEntrypoint(t *testing.T) {
 	err := Run(t.Context(), Options{Dir: t.TempDir(), Inline: true, Stderr: io.Discard})
 	if err == nil || !strings.Contains(err.Error(), "cmd/queue/main.go") {
 		t.Fatalf("Run() = %v, want missing queue entrypoint error", err)
-	}
-}
-
-func TestHandleTemplChange(t *testing.T) {
-	tests := []struct {
-		name          string
-		change        watcher.TemplChange
-		templErr      string
-		wantBroadcast bool
-		wantRebuild   bool
-	}{
-		{name: "content change reloads", change: watcher.TemplChangeNeedsBrowserReload, wantBroadcast: true},
-		{name: "go change rebuilds", change: watcher.TemplChangeNeedsRestart, wantRebuild: true},
-		{name: "content change with errors", change: watcher.TemplChangeNeedsBrowserReload, templErr: "boom"},
-		{name: "go change with errors", change: watcher.TemplChangeNeedsRestart, templErr: "boom"},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			broadcaster := reload.NewBroadcaster()
-			listener := broadcaster.Subscribe()
-			defer broadcaster.Unsubscribe(listener)
-			trk := state.New()
-			trk.SetError(state.IndexTempl, test.templErr)
-			rebuilt := false
-
-			handleTemplChange(test.change, trk, broadcaster, func() { rebuilt = true }, nil, io.Discard)
-
-			broadcast := false
-			select {
-			case <-listener:
-				broadcast = true
-			case <-time.After(50 * time.Millisecond):
-			}
-			if broadcast != test.wantBroadcast {
-				t.Fatalf("broadcast = %v, want %v", broadcast, test.wantBroadcast)
-			}
-			if rebuilt != test.wantRebuild {
-				t.Fatalf("rebuild = %v, want %v", rebuilt, test.wantRebuild)
-			}
-		})
 	}
 }

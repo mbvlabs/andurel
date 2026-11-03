@@ -29,12 +29,6 @@ var managedTools = []managedTool{
 		Description: "Typed SQL compiler with caller-owned result structs",
 	},
 	{
-		Name:        "templ",
-		Source:      "github.com/a-h/templ/cmd/templ",
-		Version:     versions.Templ,
-		Description: "Templ templating engine",
-	},
-	{
 		Name:        "goose",
 		Source:      "github.com/pressly/goose/v3/cmd/goose",
 		Version:     versions.Goose,
@@ -85,7 +79,7 @@ the tool's GitHub release checksums, or by hashing the published artifacts,
 and records them in andurel.lock. Pass --sha256 only to pin known digests.
 
 Examples:
-  andurel tool set-version templ 0.3.977
+  andurel tool set-version goose 3.27.1
   andurel tool set-version tailwindcli 4.1.18
   andurel tool set-version narsilc 0.6.4 \
     --sha256 linux/amd64=<hex> --sha256 linux/arm64=<hex> \

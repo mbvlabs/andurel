@@ -86,7 +86,7 @@ func routeRequest(target, pattern string) *http.Request {
 func TestProtocolPageLogsRouteInsteadOfSecretPath(t *testing.T) {
 	capture := captureDefaultLogger(t)
 	var captured RootData
-	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)), WithProtocolDebug(true))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(&captured)), WithProtocolDebug(true))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -110,7 +110,7 @@ func TestSSRFallbackLogsRouteInsteadOfSecretPath(t *testing.T) {
 	capture := captureDefaultLogger(t)
 	var captured RootData
 	renderer, err := newTestRenderer(
-		WithRoot(testRoot(&captured)),
+		WithRootFunc(testRoot(&captured)),
 		WithSSRRenderer(&fakeSSRRenderer{err: errors.New("SSR unavailable")}),
 	)
 	if err != nil {
@@ -136,7 +136,7 @@ func TestSSRFallbackLogsRouteInsteadOfSecretPath(t *testing.T) {
 func TestRescuedDeferredPropLogsRouteInsteadOfSecretPath(t *testing.T) {
 	capture := captureDefaultLogger(t)
 	var captured RootData
-	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(&captured)))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -169,7 +169,7 @@ func TestRescuedDeferredPropLogsRouteInsteadOfSecretPath(t *testing.T) {
 func TestProtocolRequestLogsRouteInsteadOfSecretPath(t *testing.T) {
 	capture := captureDefaultLogger(t)
 	var captured RootData
-	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)), WithProtocolDebug(true))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(&captured)), WithProtocolDebug(true))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -197,7 +197,7 @@ func TestProtocolRequestLogsRouteInsteadOfSecretPath(t *testing.T) {
 func TestProtocolRequestLogsNoPathWhenUnmatched(t *testing.T) {
 	capture := captureDefaultLogger(t)
 	var captured RootData
-	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)), WithProtocolDebug(true))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(&captured)), WithProtocolDebug(true))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}

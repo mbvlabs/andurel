@@ -149,7 +149,6 @@ func (VerifyEmail) ToHTML() (string, error) { return "", nil }
 	writeTestFile(t, root, "emails/export.tsx", "export {}\n")
 	writeTestFile(t, root, "node_modules/.keep", "")
 	lock := layout.NewAndurelLock("test")
-	lock.Tools["templ"] = validTestTool("templ", "v0.3.0")
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
 		ProjectName:       "app",
 		Inertia:           "react",
@@ -165,18 +164,6 @@ func (VerifyEmail) ToHTML() (string, error) { return "", nil }
 	writeExecutable(t, fakePath, "pnpm", fakeCommandScript(logPath, "pnpm"))
 	t.Setenv("PATH", fakePath)
 
-	var synced []string
-	syncSingleToolFunc = func(projectRoot, name string, tool *layout.Tool, goos, goarch string) error {
-		synced = append(synced, name+":"+tool.Version)
-		writeExecutable(
-			t,
-			projectRoot,
-			filepath.Join("bin", name),
-			fakeCommandScript(logPath, name),
-		)
-		return nil
-	}
-
 	report, err := buildApp(root, "1.2.3", nil)
 	if err != nil {
 		t.Fatalf("buildApp: %v", err)
@@ -186,12 +173,8 @@ func (VerifyEmail) ToHTML() (string, error) { return "", nil }
 		t.Fatalf("build report artifacts = %#v", report.Artifacts)
 	}
 
-	if len(synced) != 1 || synced[0] != "templ:v0.3.0" {
-		t.Fatalf("synced tools = %#v", synced)
-	}
 	log := readBuildTestFile(t, logPath)
 	for _, want := range []string{
-		"templ generate",
 		"pnpm install --frozen-lockfile",
 		"pnpm run email:export",
 		"pnpm run build",
@@ -222,7 +205,6 @@ func TestBuildAppRunsNarsilcWhenQueriesExist(t *testing.T) {
 		"-- name: GetUser :one\nSELECT 1;\n",
 	)
 	lock := layout.NewAndurelLock("test")
-	lock.Tools["templ"] = validTestTool("templ", "v0.3.0")
 	lock.Tools["narsilc"] = validTestTool("narsilc", "v0.1.0")
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
 		ProjectName: "app",
@@ -252,7 +234,6 @@ func TestBuildAppRunsNarsilcWhenQueriesExist(t *testing.T) {
 
 	log := readBuildTestFile(t, logPath)
 	for _, want := range []string{
-		"templ generate",
 		"narsilc generate",
 		"go fmt ./domains/internal/queries/...",
 	} {

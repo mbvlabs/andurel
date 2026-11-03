@@ -34,7 +34,6 @@ func TestMain(m *testing.M) {
 		Module  string
 		Version string
 	}{
-		{"github.com/a-h/templ/cmd/templ", versions.Templ},
 		{"github.com/segmentio/golines", versions.Golines},
 		{"golang.org/x/tools/cmd/goimports", versions.Goimports},
 	}); err != nil {

@@ -58,7 +58,7 @@ func expectCommand(t *testing.T, parts ...string) {
 }
 
 // isolateProjectTools clears ANDUREL_TOOL_BIN and PATH so resolveProjectTool
-// cannot find templ/goose/narsilc and the go-run fallback is exercised.
+// cannot find goose/narsilc and the go-run fallback is exercised.
 func isolateProjectTools(t *testing.T) {
 	t.Helper()
 	t.Setenv("ANDUREL_TOOL_BIN", "")
@@ -81,29 +81,6 @@ func TestRunCommands(t *testing.T) {
 			},
 		},
 		{name: "golines", command: []string{"golines", "-w", "-m", "100", "."}, run: RunGolines},
-		{
-			name: "templ generate",
-			command: []string{
-				"go",
-				"run",
-				"github.com/a-h/templ/cmd/templ@" + versions.Templ,
-				"generate",
-				"-path",
-				".",
-			},
-			run: RunTemplGenerate,
-		},
-		{
-			name: "templ fmt",
-			command: []string{
-				"go",
-				"run",
-				"github.com/a-h/templ/cmd/templ@" + versions.Templ,
-				"fmt",
-				".",
-			},
-			run: RunTemplFmt,
-		},
 		{
 			name: "goose fix",
 			command: []string{
@@ -270,8 +247,6 @@ func TestRunCommandErrors(t *testing.T) {
 			RunGoFmt,
 			func(dir string) error { return RunGoFmtPath(dir, ".") },
 			RunGolines,
-			RunTemplGenerate,
-			RunTemplFmt,
 			RunGooseFix,
 			RunNarsilcGenerate,
 			RunNarsilcGenerateOptional,
@@ -300,31 +275,6 @@ func TestRunCommandErrors(t *testing.T) {
 		expectCommand(t, "golines", "-w", "-m", "100", ".")
 		if err := RunGolines(targetDir); err == nil {
 			t.Fatal("expected golines failure")
-		}
-
-		expectCommand(
-			t,
-			"go",
-			"run",
-			"github.com/a-h/templ/cmd/templ@"+versions.Templ,
-			"generate",
-			"-path",
-			".",
-		)
-		if err := RunTemplGenerate(targetDir); err == nil {
-			t.Fatal("expected templ generate failure")
-		}
-
-		expectCommand(
-			t,
-			"go",
-			"run",
-			"github.com/a-h/templ/cmd/templ@"+versions.Templ,
-			"fmt",
-			".",
-		)
-		if err := RunTemplFmt(targetDir); err == nil {
-			t.Fatal("expected templ fmt failure")
 		}
 
 		expectCommand(

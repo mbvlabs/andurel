@@ -110,6 +110,18 @@ func (u *Upgrader) buildPlan(dirty bool) (*upgradePlan, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The upgrade pins every pkg/* module to the versions compiled into this
+	// CLI, including pkg/inertia v0.15.0 and pkg/storage v0.16.0. A project
+	// that still has the old templ root or pkg/email cannot build after those
+	// pins even when the target is an earlier pre-release, so report the same
+	// migration notices whenever the legacy structure is actually present.
+	plan.manualActions = mergeManualActions(
+		plan.manualActions,
+		filterManualActionsForProject(
+			u.projectRoot,
+			legacyBreakingManualActions(includeInertiaMigration),
+		),
+	)
 
 	toolChanges, err := syncTools(lock)
 	if err != nil {
@@ -205,6 +217,22 @@ func (u *Upgrader) addVerifiedPackageDependencies(
 		currentByPath[requirement.Mod.Path] = requirement.Mod.Version
 	}
 
+	// templ stopped being a framework tool when the Inertia root moved to
+	// html/template. Drop its tool directive from beta projects; an unknown
+	// legacy tool must never fail the upgrade.
+	removedTools := make([]string, 0, 1)
+	for _, tool := range file.Tool {
+		if tool != nil && tool.Path == "github.com/a-h/templ/cmd/templ" {
+			removedTools = append(removedTools, tool.Path)
+		}
+	}
+	for _, path := range removedTools {
+		if err := file.DropTool(path); err != nil {
+			return fmt.Errorf("drop templ tool directive: %w", err)
+		}
+	}
+	removedTool := len(removedTools) > 0
+
 	pins := make(map[string]string)
 	if config != nil && layout.IsSupportedInertiaAdapter(config.Inertia) {
 		inertiaPath := versions.PkgPrefix + "inertia"
@@ -231,7 +259,7 @@ func (u *Upgrader) addVerifiedPackageDependencies(
 		shouldUpgradePackage(current, versions.NarsilcModule) {
 		pins[versions.NarsilcModulePath] = versions.NarsilcModule
 	}
-	if len(pins) == 0 {
+	if len(pins) == 0 && !removedTool {
 		return nil
 	}
 

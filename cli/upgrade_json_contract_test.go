@@ -447,7 +447,7 @@ func TestHumanUpgradeSyncsToolsOnlyWhenToolVersionsChange(t *testing.T) {
 			prepareUpgradeJSONTest(t, root)
 
 			lock := layout.NewAndurelLock("v1.0.0")
-			lock.Tools["templ"] = validTestTool("templ", "v0.1.0")
+			lock.Tools["goose"] = validTestTool("goose", "v3.0.0")
 			if err := lock.WriteLockFile(root); err != nil {
 				t.Fatalf("write lock: %v", err)
 			}

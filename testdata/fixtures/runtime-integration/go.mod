@@ -9,9 +9,8 @@ module andurel.local/rc1/runtime-integration
 go 1.27.3
 
 require (
-	github.com/a-h/templ v0.3.1020
 	github.com/mbvlabs/andurel/pkg/anduin v0.8.0
-	github.com/mbvlabs/andurel/pkg/inertia v0.14.1
+	github.com/mbvlabs/andurel/pkg/inertia v0.15.0
 	github.com/mbvlabs/andurel/pkg/kiks v0.6.1
 	github.com/mbvlabs/andurel/pkg/routing v0.9.1
 )

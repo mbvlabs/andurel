@@ -81,7 +81,6 @@ import (
  "time"
  "testapp/domains"
 
- "github.com/a-h/templ"
  "github.com/mbvlabs/andurel/pkg/anduin"
  "github.com/mbvlabs/andurel/pkg/inertia"
 )
@@ -91,8 +90,11 @@ func (fieldError) Error() string { return "validation" }
 func (fieldError) ToMap() map[string]string { return map[string]string{"email":"required"} }
 
 func TestResponses(t *testing.T) {
- renderer, err := inertia.NewRenderer(inertia.RendererConfig{ContainerID:"app", SSRURL:"http://127.0.0.1:13714", SSRTimeout:time.Second, SSRMaxResponseBytes:1<<20}, inertia.WithRoot(func(data inertia.RootData) templ.Component {
-  return inertia.PageScript(data.ContainerID, data.PageJSON)
+ renderer, err := inertia.NewRenderer(inertia.RendererConfig{ContainerID:"app", SSRURL:"http://127.0.0.1:13714", SSRTimeout:time.Second, SSRMaxResponseBytes:1<<20}, inertia.WithRootFunc(func(w io.Writer, data inertia.RootData) error {
+  script, err := data.PageScript()
+  if err != nil { return err }
+  _, err = io.WriteString(w, string(script))
+  return err
  }))
  if err != nil { t.Fatal(err) }
  tests := []struct {

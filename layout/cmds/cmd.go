@@ -151,54 +151,6 @@ func runNarsilcGenerate(targetDir string) error {
 	return RunGoFmtPath(absTargetDir, "./domains/internal/queries/...")
 }
 
-// RunTemplGenerate runs templ generate over the project root so FileName
-// values stay project-relative (resources/root.templ), matching andurel new.
-func RunTemplGenerate(targetDir string) error {
-	absTargetDir, err := absolutePath(targetDir)
-	if err != nil {
-		return fmt.Errorf("failed to get absolute path: %w", err)
-	}
-
-	var cmd *exec.Cmd
-	if templBin := resolveProjectTool("templ", absTargetDir); templBin != "" {
-		cmd = newCommand(templBin, "generate", "-path", ".")
-	} else {
-		cmd = newCommand(
-			"go",
-			"run",
-			"github.com/a-h/templ/cmd/templ@"+versions.Templ,
-			"generate",
-			"-path",
-			".",
-		)
-	}
-	cmd.Dir = absTargetDir
-	return cmd.Run()
-}
-
-// RunTemplFmt runs templ fmt.
-func RunTemplFmt(targetDir string) error {
-	absTargetDir, err := absolutePath(targetDir)
-	if err != nil {
-		return fmt.Errorf("failed to get absolute path: %w", err)
-	}
-
-	var cmd *exec.Cmd
-	if templBin := resolveProjectTool("templ", absTargetDir); templBin != "" {
-		cmd = newCommand(templBin, "fmt", ".")
-	} else {
-		cmd = newCommand(
-			"go",
-			"run",
-			"github.com/a-h/templ/cmd/templ@"+versions.Templ,
-			"fmt",
-			".",
-		)
-	}
-	cmd.Dir = absTargetDir
-	return cmd.Run()
-}
-
 // RunGooseFix runs goose fix.
 func RunGooseFix(targetDir string) error {
 	absTargetDir, err := absolutePath(targetDir)

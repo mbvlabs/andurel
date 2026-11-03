@@ -149,9 +149,8 @@ func TestCanceledRebuildOnlyRemovesItsCandidateBinary(t *testing.T) {
 	}
 
 	s := &AppServer{
-		binDir:   tmpDir,
-		templDir: filepath.Join(tmpDir, "templ"),
-		binPath:  oldActiveBin,
+		binDir:  tmpDir,
+		binPath: oldActiveBin,
 	}
 
 	buildCtx, cancelBuild := context.WithCancel(context.Background())
@@ -305,7 +304,6 @@ func TestRepeatedRuntimeMissingFileOutputTriggersRebuild(t *testing.T) {
 
 	s := &AppServer{
 		binDir:                 tmpDir,
-		templDir:               filepath.Join(tmpDir, "templ"),
 		appPort:                getUnusedPort(t),
 		broadcaster:            reload.NewBroadcaster(),
 		buildRunner:            ctxrun.New(),

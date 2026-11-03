@@ -17,8 +17,6 @@ func TestDoctorDiagnosticsUseTemporaryCopiesWithoutMutatingOriginalProject(t *te
 	writeTestFile(t, root, "go.mod", "module example.com/doctor\n\ngo 1.27.1\n")
 	writeTestFile(t, root, "go.sum", "original sum\n")
 	writeTestFile(t, root, "main.go", "package main\n\nfunc main() {}\n")
-	writeTestFile(t, root, "resources/root.templ", "package resources\n")
-	writeTestFile(t, root, "resources/root_templ.go", "package resources\n")
 	writeTestFile(t, root, "routes/pages.go", `package routes
 
 import "github.com/mbvlabs/andurel/pkg/routing"
@@ -36,13 +34,6 @@ var Home = routing.NewSimpleRoute("/", "home", "")
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
 	}
-	writeExecutable(
-		t,
-		root,
-		"bin/templ",
-		"#!/bin/sh\nprintf 'package resources\\n// generated in temporary copy\\n' > resources/root_templ.go\n",
-	)
-
 	fakePath := t.TempDir()
 	writeExecutable(
 		t,
@@ -74,9 +65,6 @@ var Home = routing.NewSimpleRoute("/", "home", "")
 	}
 	if result := checkGoModTidy(root, true); result.status != statusWarn {
 		t.Fatalf("tidy check = %#v", result)
-	}
-	if result := checkTemplGenerate(root, true); result.status != statusFail {
-		t.Fatalf("templ check = %#v", result)
 	}
 	if result := checkRoutesTSGenerate(root, true); result.status != statusFail {
 		t.Fatalf("routes check = %#v", result)

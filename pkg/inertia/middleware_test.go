@@ -46,7 +46,7 @@ func captureTestHosts(t *testing.T) *routing.Hosts {
 func newCaptureTestRenderer(t *testing.T, options ...Option) *Renderer {
 	t.Helper()
 
-	options = append([]Option{WithRoot(testRoot(new(RootData))), WithVersion(captureTestVersion)}, options...)
+	options = append([]Option{WithRootFunc(testRoot(new(RootData))), WithVersion(captureTestVersion)}, options...)
 	renderer, err := newTestRenderer(options...)
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
@@ -197,7 +197,7 @@ func TestMiddlewareCommitsRenderedGuardError(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				var rootData RootData
 				renderer, err := newTestRenderer(
-					WithRoot(testRoot(&rootData)),
+					WithRootFunc(testRoot(&rootData)),
 					WithVersion(captureTestVersion),
 				)
 				if err != nil {
@@ -648,7 +648,7 @@ func TestMiddlewareDiscardsCaptureWhileCatchErrorsIsPending(t *testing.T) {
 func TestMiddlewareDiscardsBufferedSuccessBeforeHostError(t *testing.T) {
 	var capturedRoot RootData
 	renderer, err := newTestRenderer(
-		WithRoot(testRoot(&capturedRoot)),
+		WithRootFunc(testRoot(&capturedRoot)),
 		WithVersion(captureTestVersion),
 	)
 	if err != nil {

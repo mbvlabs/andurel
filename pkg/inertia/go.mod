@@ -3,7 +3,6 @@ module github.com/mbvlabs/andurel/pkg/inertia
 go 1.27.3
 
 require (
-	github.com/a-h/templ v0.3.1020
 	github.com/mbvlabs/andurel/pkg/anduin v0.8.0
 	github.com/mbvlabs/andurel/pkg/routing v0.9.0
 )

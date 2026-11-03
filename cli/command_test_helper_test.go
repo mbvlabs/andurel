@@ -151,11 +151,9 @@ func resetCLITestSeams(t *testing.T) {
 
 	cache.ClearFileSystemCache()
 	defaultFindGoModRoot := findGoModRoot
-	defaultRunTempl := runTemplFunc
 	defaultRunFmt := runFmtFunc
 	defaultRunGoFmt := runGoFmtFunc
 	defaultRunGolines := runGolinesFunc
-	defaultRunTemplFmt := runTemplFmtFunc
 	defaultMakeDiagnosticTempDir := makeDiagnosticTempDir
 	defaultRemoveDiagnosticTempDir := removeDiagnosticTempDir
 	defaultSyncSingleTool := syncSingleToolFunc
@@ -175,11 +173,9 @@ func resetCLITestSeams(t *testing.T) {
 
 	t.Cleanup(func() {
 		findGoModRoot = defaultFindGoModRoot
-		runTemplFunc = defaultRunTempl
 		runFmtFunc = defaultRunFmt
 		runGoFmtFunc = defaultRunGoFmt
 		runGolinesFunc = defaultRunGolines
-		runTemplFmtFunc = defaultRunTemplFmt
 		makeDiagnosticTempDir = defaultMakeDiagnosticTempDir
 		removeDiagnosticTempDir = defaultRemoveDiagnosticTempDir
 		syncSingleToolFunc = defaultSyncSingleTool

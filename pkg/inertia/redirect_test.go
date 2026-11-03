@@ -42,7 +42,7 @@ func TestLocationRedirectWithoutRenderer(t *testing.T) {
 func TestRedirectCrossDomainInertiaUsesLocation(t *testing.T) {
 	t.Parallel()
 
-	renderer, err := newTestRenderer(WithRoot(testRoot(new(RootData))))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(new(RootData))))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestRedirectCrossDomainInertiaUsesLocation(t *testing.T) {
 func TestRedirectCrossDomainHostComparisonIsCaseInsensitivePortAware(t *testing.T) {
 	t.Parallel()
 
-	renderer, err := newTestRenderer(WithRoot(testRoot(new(RootData))))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(new(RootData))))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestRedirectCrossDomainHostComparisonIsCaseInsensitivePortAware(t *testing.
 func TestRedirectInertiaSameDomainAbsoluteURLIsNormalRedirect(t *testing.T) {
 	t.Parallel()
 
-	renderer, err := newTestRenderer(WithRoot(testRoot(new(RootData))))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(new(RootData))))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestRedirectInertiaSameDomainAbsoluteURLIsNormalRedirect(t *testing.T) {
 func TestRedirectInertiaRelativePathIsNormalRedirect(t *testing.T) {
 	t.Parallel()
 
-	renderer, err := newTestRenderer(WithRoot(testRoot(new(RootData))))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(new(RootData))))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -154,7 +154,7 @@ func TestRedirectInertiaRelativePathIsNormalRedirect(t *testing.T) {
 func TestRedirectNonInertiaCrossDomainIsNormalRedirect(t *testing.T) {
 	t.Parallel()
 
-	renderer, err := newTestRenderer(WithRoot(testRoot(new(RootData))))
+	renderer, err := newTestRenderer(WithRootFunc(testRoot(new(RootData))))
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}

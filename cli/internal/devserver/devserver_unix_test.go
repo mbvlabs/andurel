@@ -42,7 +42,7 @@ func TestCleanupStopsProcessGroupAfterLeaderExits(t *testing.T) {
 		t.Fatal("test setup: child should outlive the leader")
 	}
 
-	procs.cleanup(io.Discard, dir, nil)
+	procs.cleanup(io.Discard, nil)
 
 	assertPIDGone(t, childPID, "cleanup left a process-group member running")
 }

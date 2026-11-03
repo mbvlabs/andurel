@@ -3,14 +3,13 @@ package state
 import "sync"
 
 const (
-	IndexTempl   = 0
-	IndexGoBuild = 1
-	IndexEmails  = 2
+	IndexGoBuild = 0
+	IndexEmails  = 1
 )
 
 type Tracker struct {
 	mu      sync.Mutex
-	errMsgs [3]string
+	errMsgs [2]string
 }
 
 func New() *Tracker {

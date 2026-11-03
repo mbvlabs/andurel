@@ -102,7 +102,7 @@ production SSR process and is not started here.
 
 It watches:
   - Go files: rebuild and restart the app and the queue worker
-  - resources/*.templ: templ generate --watch restricted to resources/ (TEMPL_DEV_MODE)
+  - resources/*.html: rebuild and restart the app (the embedded Inertia root)
   - emails/*.go and emails/**: andurel sync emails regenerates props, manifest
     and emails/templates, then the app and queue rebuild
   - narsilc queries are generated once at start
@@ -125,9 +125,6 @@ Pass --tools to start allowlisted sidecars (mailpit) alongside the runner.`,
 				return err
 			}
 
-			if err := checkBinaries(rootDir); err != nil {
-				return err
-			}
 			if err := generateNarsilcIfNeeded(rootDir); err != nil {
 				return err
 			}
@@ -280,33 +277,4 @@ var findGoModRoot = func() (string, error) {
 
 		return "", fmt.Errorf("not in an andurel project: go.mod could not be found")
 	})
-}
-
-func checkBinaries(rootDir string) error {
-	lockPath := filepath.Join(rootDir, "andurel.lock")
-	if _, err := os.Stat(lockPath); err != nil {
-		return nil
-	}
-
-	lock, err := os.ReadFile(lockPath)
-	if err != nil {
-		return nil
-	}
-
-	if len(lock) == 0 {
-		return nil
-	}
-
-	// andurel run watches resources/*.templ with bin/templ.
-	binPath := filepath.Join(rootDir, "bin", "templ")
-	if _, err := os.Stat(binPath); err != nil {
-		return output.NewError(
-			output.CodeMissingTool,
-			"bin/templ not found",
-			output.ExitDependency,
-			"Run 'andurel tool sync' to download it.",
-		)
-	}
-
-	return nil
 }

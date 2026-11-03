@@ -48,9 +48,8 @@ func TestGeneratedLivenessIsProcessOnly(t *testing.T) {
 }
 
 func TestGeneratedRootTitleIsFallbackOnlyWithoutSSR(t *testing.T) {
-	assertTemplateContains(t, "inertia_framework_root.tmpl",
-		"if data.SSR == nil {",
-		"<title>{ data.ProjectName }</title>",
+	assertTemplateContains(t, "resources_root_html.tmpl",
+		"{{if not .SSR}}<title>{{.ProjectName}}</title>{{end}}",
 	)
 }
 

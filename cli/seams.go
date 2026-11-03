@@ -8,11 +8,9 @@ import (
 
 var runDevServerFunc = devserver.Run
 
-var runTemplFunc = runTempl
 var runFmtFunc = runFmt
 var runGoFmtFunc = runGoFmt
 var runGolinesFunc = runGolines
-var runTemplFmtFunc = runTemplFmt
 var syncSingleToolFunc = syncSingleTool
 var ensureToolFunc = ensureToolInstalled
 var downloadFromLockToolFunc = downloadFromLockTool

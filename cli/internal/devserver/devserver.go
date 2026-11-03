@@ -2,7 +2,7 @@
 //
 // Run builds and supervises cmd/app and cmd/queue, puts a live-reload proxy in
 // front of the app, runs the Vite dev server (which also serves development
-// SSR), watches Go files, resources/*.templ and emails/**, and
+// SSR), watches Go files, resources/*.html and emails/**, and
 // starts allowlisted sidecar tools. Cancel the context to stop everything.
 package devserver
 
@@ -58,7 +58,7 @@ type Options struct {
 	Tools []string
 	// Inline prints interleaved logs instead of the interactive TUI.
 	Inline bool
-	// Verbose logs watcher and templ details.
+	// Verbose logs watcher details.
 	Verbose bool
 	// ClearLogs clears the terminal before each rebuild (inline mode only).
 	ClearLogs bool
@@ -138,7 +138,7 @@ func Run(ctx context.Context, opts Options) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer func() {
 		cancel()
-		procs.cleanup(opts.Stderr, opts.Dir, []string{
+		procs.cleanup(opts.Stderr, []string{
 			net.JoinHostPort("127.0.0.1", proxyPort),
 			net.JoinHostPort("127.0.0.1", appPort),
 		})
@@ -190,7 +190,6 @@ func Run(ctx context.Context, opts Options) error {
 	rebuildChan := make(chan struct{}, 1)
 	appRebuild := make(chan struct{}, 1)
 	queueRebuild := make(chan struct{}, 1)
-	templChange := make(chan watcher.TemplChange, 64)
 
 	trk := state.New()
 	var wg sync.WaitGroup
@@ -232,24 +231,6 @@ func Run(ctx context.Context, opts Options) error {
 			buildLog,
 		); err != nil {
 			errChan <- fmt.Errorf("go-watcher: %w", err)
-		}
-	})
-
-	wg.Go(func() {
-		cfg := watcher.TemplWatcherConfig{
-			Dir:        opts.Dir,
-			Verbose:    opts.Verbose,
-			AddProcess: procs.add,
-			Log:        buildLog,
-			OnTemplErr: func(msg string) {
-				trk.SetError(state.IndexTempl, msg)
-				if msg != "" {
-					hub.SetStatus(tui.StreamBuild, tui.StatusError)
-				}
-			},
-		}
-		if err := watcher.RunTemplWatcher(ctx, templChange, cfg); err != nil {
-			errChan <- fmt.Errorf("live-templ: %w", err)
 		}
 	})
 
@@ -326,7 +307,7 @@ func Run(ctx context.Context, opts Options) error {
 			rebuildInProgress.Store(inProgress)
 			if inProgress {
 				hub.SetStatus(tui.StreamBuild, tui.StatusStarting)
-			} else if !trk.HasErrorAt(state.IndexGoBuild) && !trk.HasErrorAt(state.IndexTempl) &&
+			} else if !trk.HasErrorAt(state.IndexGoBuild) &&
 				!trk.HasErrorAt(state.IndexEmails) {
 				hub.SetStatus(tui.StreamBuild, tui.StatusReady)
 			}
@@ -373,20 +354,8 @@ func Run(ctx context.Context, opts Options) error {
 		})
 	}
 
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case change := <-templChange:
-				handleTemplChange(change, trk, broadcaster, requestRebuild, clearLogs, buildLog)
-			}
-		}
-	}()
-
 	_, _ = fmt.Fprintf(buildLog, "\n  Proxy server: http://localhost:%s\n", proxyPort)
 	_, _ = fmt.Fprintf(buildLog, "  App server:   http://localhost:%s (internal)\n", appPort)
-	_, _ = fmt.Fprintf(buildLog, "  TEMPL_DEV_MODE: enabled (fast template reloads)\n")
 	_, _ = fmt.Fprintf(buildLog, "  Inertia frontend: %s run dev (Vite dev server)\n", opts.PackageManager)
 	_, _ = fmt.Fprintf(buildLog, "  Inertia SSR:      Vite /__inertia_ssr\n")
 	if syncEmails != nil {
@@ -443,38 +412,6 @@ func Run(ctx context.Context, opts Options) error {
 	return errors.Join(errs...)
 }
 
-// handleTemplChange reacts to a templ watch event: content-only changes
-// reload the browser, generated Go changes rebuild the app and queue.
-func handleTemplChange(
-	change watcher.TemplChange,
-	trk *state.Tracker,
-	broadcaster *reload.Broadcaster,
-	requestRebuild func(),
-	clearLogs func(),
-	log io.Writer,
-) {
-	// Watcher messages are best-effort; reloads and rebuilds must still run.
-	switch change {
-	case watcher.TemplChangeNeedsBrowserReload:
-		if clearLogs != nil {
-			clearLogs()
-		}
-		if trk.HasErrorAt(state.IndexTempl) {
-			_, _ = fmt.Fprintln(log, "[run] Templ has errors, skipping browser reload")
-			return
-		}
-		_, _ = fmt.Fprintln(log, "[run] Template changed, reloading browser")
-		broadcaster.Broadcast()
-	case watcher.TemplChangeNeedsRestart:
-		if trk.HasErrorAt(state.IndexTempl) {
-			_, _ = fmt.Fprintln(log, "[run] Templ has errors, skipping rebuild")
-			return
-		}
-		_, _ = fmt.Fprintln(log, "[run] Template Go code changed, rebuilding")
-		requestRebuild()
-	}
-}
-
 // processSet tracks child processes so shutdown can stop anything a runner
 // did not stop on its own.
 type processSet struct {
@@ -525,9 +462,8 @@ func (p *processSet) snapshot() []*exec.Cmd {
 }
 
 // cleanup SIGTERMs every tracked process (its whole group when it has one),
-// SIGKILLs what is still alive, waits for the given ports and removes the
-// templ dev-mode temp files.
-func (p *processSet) cleanup(out io.Writer, dir string, ports []string) {
+// SIGKILLs what is still alive, and waits for the given ports.
+func (p *processSet) cleanup(out io.Writer, ports []string) {
 	// Cleanup must continue even when diagnostics cannot be written.
 	_, _ = fmt.Fprintf(out, "\n[run] Cleaning up processes...\n")
 
@@ -549,8 +485,6 @@ func (p *processSet) cleanup(out io.Writer, dir string, ports []string) {
 			_, _ = fmt.Fprintf(out, "[run] %v\n", err)
 		}
 	}
-
-	_ = os.RemoveAll(filepath.Join(dir, "tmp", "templ"))
 
 	_, _ = fmt.Fprintf(out, "[run] Cleanup complete.\n")
 }
