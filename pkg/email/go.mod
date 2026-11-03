@@ -1,3 +1,4 @@
+// Deprecated: use github.com/mbvlabs/andurel/pkg/postmand instead.
 module github.com/mbvlabs/andurel/pkg/email
 
 go 1.27.3

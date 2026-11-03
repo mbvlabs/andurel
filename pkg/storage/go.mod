@@ -6,7 +6,7 @@ require (
 	github.com/containerd/errdefs v1.0.0
 	github.com/exaring/otelpgx v0.11.1
 	github.com/jackc/pgx/v5 v5.10.0
-	github.com/mbvlabs/andurel/pkg/email v0.6.1
+	github.com/mbvlabs/andurel/pkg/postmand v0.1.0
 	github.com/mbvlabs/andurel/pkg/telemetry v0.2.3
 	github.com/moby/moby/client v0.5.0
 	github.com/pressly/goose/v3 v3.27.2

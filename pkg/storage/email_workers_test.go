@@ -5,24 +5,24 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/mbvlabs/andurel/pkg/email"
+	"github.com/mbvlabs/andurel/pkg/postmand"
 	"github.com/riverqueue/river"
 )
 
-type transactionalSenderFunc func(context.Context, email.TransactionalPayload) error
+type transactionalSenderFunc func(context.Context, postmand.TransactionalPayload) error
 
 func (f transactionalSenderFunc) SendTransactional(
 	ctx context.Context,
-	payload email.TransactionalPayload,
+	payload postmand.TransactionalPayload,
 ) error {
 	return f(ctx, payload)
 }
 
-type marketingSenderFunc func(context.Context, email.MarketingPayload) error
+type marketingSenderFunc func(context.Context, postmand.MarketingPayload) error
 
 func (f marketingSenderFunc) SendMarketing(
 	ctx context.Context,
-	payload email.MarketingPayload,
+	payload postmand.MarketingPayload,
 ) error {
 	return f(ctx, payload)
 }
@@ -38,10 +38,10 @@ func TestEmailJobKindsStayStable(t *testing.T) {
 
 func TestAddEmailWorkersRegistersBothWorkers(t *testing.T) {
 	workers := river.NewWorkers()
-	transactional := transactionalSenderFunc(func(context.Context, email.TransactionalPayload) error {
+	transactional := transactionalSenderFunc(func(context.Context, postmand.TransactionalPayload) error {
 		return nil
 	})
-	marketing := marketingSenderFunc(func(context.Context, email.MarketingPayload) error {
+	marketing := marketingSenderFunc(func(context.Context, postmand.MarketingPayload) error {
 		return nil
 	})
 
@@ -62,11 +62,11 @@ func TestAddEmailWorkersRegistersBothWorkers(t *testing.T) {
 }
 
 func TestSendTransactionalCancelsNonRetryableErrors(t *testing.T) {
-	permanent := email.PermanentError{Err: errors.New("mailbox does not exist")}
+	permanent := postmand.PermanentError{Err: errors.New("mailbox does not exist")}
 	err := SendTransactional(
 		t.Context(),
-		email.TransactionalData{To: "user@example.com", From: "app@example.com", Subject: "Hi", HTMLBody: "<p>Hi</p>"},
-		transactionalSenderFunc(func(context.Context, email.TransactionalPayload) error {
+		postmand.TransactionalData{To: "user@example.com", From: "app@example.com", Subject: "Hi", HTMLBody: "<p>Hi</p>"},
+		transactionalSenderFunc(func(context.Context, postmand.TransactionalPayload) error {
 			return permanent
 		}),
 	)
@@ -80,11 +80,11 @@ func TestSendTransactionalCancelsNonRetryableErrors(t *testing.T) {
 }
 
 func TestSendTransactionalReturnsRetryableErrors(t *testing.T) {
-	temporary := email.TemporaryError{Err: errors.New("mail server unavailable")}
+	temporary := postmand.TemporaryError{Err: errors.New("mail server unavailable")}
 	err := SendTransactional(
 		t.Context(),
-		email.TransactionalData{To: "user@example.com", From: "app@example.com", Subject: "Hi", HTMLBody: "<p>Hi</p>"},
-		transactionalSenderFunc(func(context.Context, email.TransactionalPayload) error {
+		postmand.TransactionalData{To: "user@example.com", From: "app@example.com", Subject: "Hi", HTMLBody: "<p>Hi</p>"},
+		transactionalSenderFunc(func(context.Context, postmand.TransactionalPayload) error {
 			return temporary
 		}),
 	)

@@ -4,6 +4,13 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ## Unreleased
 
+## 0.16.0 - 2026-11-03
+
+### Changed
+
+- **Breaking:** email worker args and sender types now come from
+  `github.com/mbvlabs/andurel/pkg/postmand` instead of `pkg/email`.
+
 ## 0.15.1 - 2026-11-02
 
 ### Fixed

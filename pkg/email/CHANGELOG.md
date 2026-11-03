@@ -4,6 +4,12 @@ All notable changes to the standalone Andurel email module are documented here.
 
 ## Unreleased
 
+## 0.7.0 - 2026-11-03
+
+### Deprecated
+
+- Deprecated in favour of `pkg/postmand`; no API changes.
+
 ## 0.6.1 - 2026-10-28
 
 ### Fixed

@@ -10,8 +10,12 @@ use (
 	./pkg/inertia
 	./pkg/kiks
 	./pkg/lifecycle
+	./pkg/postmand
 	./pkg/routing
 	./pkg/storage
 	./pkg/telemetry
 	./pkg/validation
 )
+
+// postmand is not tagged yet; resolve the storage module's pin from this checkout.
+replace github.com/mbvlabs/andurel/pkg/postmand v0.1.0 => ./pkg/postmand
