@@ -1,13 +1,20 @@
 package upgrade
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"go/ast"
+	"go/format"
+	"go/parser"
+	"go/token"
 	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -221,6 +228,11 @@ func assertCandidateProject(t *testing.T, root string, target string) {
 	}
 }
 
+const (
+	legacyEmailImportPath = "github.com/mbvlabs/andurel/pkg/email"
+	postmandImportPath    = "github.com/mbvlabs/andurel/pkg/postmand"
+)
+
 // migrateLegacyEmailImports applies the documented rc.1 breaking migration to
 // application-owned Go files. The upgrade does not rewrite application code;
 // this helper mirrors the release-note import rewrite so the candidate E2E
@@ -228,11 +240,6 @@ func assertCandidateProject(t *testing.T, root string, target string) {
 // types remain compatible with pkg/storage v0.16.0.
 func migrateLegacyEmailImports(t *testing.T, root string) {
 	t.Helper()
-
-	const (
-		legacy      = `"github.com/mbvlabs/andurel/pkg/email"`
-		replacement = `"github.com/mbvlabs/andurel/pkg/postmand"`
-	)
 
 	migrated := 0
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
@@ -255,11 +262,18 @@ func migrateLegacyEmailImports(t *testing.T, root string) {
 		if readErr != nil {
 			return readErr
 		}
-		updated := strings.ReplaceAll(string(content), legacy, replacement)
-		if updated == string(content) {
+		if !bytes.Contains(content, []byte(legacyEmailImportPath)) {
 			return nil
 		}
-		if writeErr := os.WriteFile(path, []byte(updated), 0o644); writeErr != nil {
+
+		updated, changed, migrateErr := migrateLegacyEmailFile(path, content)
+		if migrateErr != nil {
+			return fmt.Errorf("migrate %s: %w", path, migrateErr)
+		}
+		if !changed {
+			return nil
+		}
+		if writeErr := os.WriteFile(path, updated, 0o644); writeErr != nil {
 			return writeErr
 		}
 		migrated++
@@ -270,6 +284,63 @@ func migrateLegacyEmailImports(t *testing.T, root string) {
 		t.Fatalf("migrate legacy pkg/email imports: %v", err)
 	}
 	t.Logf("applied documented pkg/email -> pkg/postmand import migration to %d files", migrated)
+}
+
+// migrateLegacyEmailFile rewrites an import of pkg/email to pkg/postmand and,
+// when the old import was unaliased, the `email.` selectors bound to it. An
+// explicitly aliased import keeps its local name, so its selectors do not
+// change. Selectors whose identifier resolves to a local declaration are left
+// alone even if they are named email.
+func migrateLegacyEmailFile(path string, content []byte) ([]byte, bool, error) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, path, content, parser.ParseComments)
+	if err != nil {
+		return nil, false, err
+	}
+
+	unaliased := false
+	found := false
+	for _, importSpec := range file.Imports {
+		importPath, unquoteErr := strconv.Unquote(importSpec.Path.Value)
+		if unquoteErr != nil {
+			return nil, false, unquoteErr
+		}
+		if importPath != legacyEmailImportPath {
+			continue
+		}
+
+		found = true
+		if importSpec.Name == nil {
+			unaliased = true
+		}
+		importSpec.Path.Value = strconv.Quote(postmandImportPath)
+	}
+	if !found {
+		return content, false, nil
+	}
+
+	if unaliased {
+		ast.Inspect(file, func(node ast.Node) bool {
+			selector, ok := node.(*ast.SelectorExpr)
+			if !ok {
+				return true
+			}
+			ident, ok := selector.X.(*ast.Ident)
+			if !ok || ident.Name != "email" || ident.Obj != nil {
+				return true
+			}
+			ident.Name = "postmand"
+
+			return true
+		})
+	}
+
+	var formatted bytes.Buffer
+	if err := format.Node(&formatted, fset, file); err != nil {
+		return nil, false, err
+	}
+
+	return formatted.Bytes(), true, nil
 }
 
 // replaceWithLocalPackages points every pkg/* module in the upgraded project at
