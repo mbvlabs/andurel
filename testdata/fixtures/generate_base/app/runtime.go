@@ -17,10 +17,10 @@ import (
 	"example.com/app/services"
 
 	"github.com/mbvlabs/andurel/pkg/anduin"
-	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/lifecycle"
+	"github.com/mbvlabs/andurel/pkg/postmand"
 	"github.com/mbvlabs/andurel/pkg/routing"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
@@ -220,14 +220,14 @@ func newTelemetry(
 func newEmailSenders(
 	cfg config.Mail,
 	app config.App,
-) (email.TransactionalSender, email.MarketingSender, error) {
+) (postmand.TransactionalSender, postmand.MarketingSender, error) {
 	if err := validateEmailConfig(cfg, app); err != nil {
 		return nil, nil, err
 	}
 
 	switch cfg.Driver {
 	case config.MailpitDriver:
-		client, err := email.NewMailpit(email.MailpitConfig{
+		client, err := postmand.NewMailpit(postmand.MailpitConfig{
 			Host: cfg.Host,
 			Port: cfg.Port,
 		})
@@ -237,12 +237,12 @@ func newEmailSenders(
 
 		return client, client, nil
 	case config.SMTPDriver:
-		client, err := email.NewSMTP(email.SMTPConfig{
+		client, err := postmand.NewSMTP(postmand.SMTPConfig{
 			Host:     cfg.SMTPHost,
 			Port:     cfg.SMTPPort,
 			Username: cfg.SMTPUsername,
 			Password: cfg.SMTPPassword,
-			TLS:      email.SMTPTLSMode(cfg.SMTPTLS),
+			TLS:      postmand.SMTPTLSMode(cfg.SMTPTLS),
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("create SMTP sender: %w", err)

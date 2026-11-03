@@ -18,14 +18,14 @@ const testAndurelPackagesGoMod = `module example.com/app
 go 1.27.1
 
 require (
-	github.com/mbvlabs/andurel/pkg/email v0.3.1
+	github.com/mbvlabs/andurel/pkg/postmand v0.3.1
 	github.com/mbvlabs/andurel/pkg/storage v0.7.0
 	github.com/other/thing v1.0.0
 )
 
 require github.com/mbvlabs/andurel/pkg/server v0.3.2 // indirect
 
-replace github.com/mbvlabs/andurel/pkg/email => ./vendor/email
+replace github.com/mbvlabs/andurel/pkg/postmand => ./vendor/postmand
 `
 
 func TestListAndurelPackages(t *testing.T) {
@@ -37,11 +37,11 @@ func TestListAndurelPackages(t *testing.T) {
 		t.Fatalf("list packages: %v", err)
 	}
 	if len(packages) != 2 {
-		t.Fatalf("packages = %#v, want email and storage", packages)
+		t.Fatalf("packages = %#v, want postmand and storage", packages)
 	}
-	if packages[0].Name != "email" || packages[0].Status != packageStatusReplaced ||
-		packages[0].Replace != "./vendor/email" {
-		t.Fatalf("email package = %#v", packages[0])
+	if packages[0].Name != "postmand" || packages[0].Status != packageStatusReplaced ||
+		packages[0].Replace != "./vendor/postmand" {
+		t.Fatalf("postmand package = %#v", packages[0])
 	}
 	if packages[1].Name != "storage" || packages[1].Current != "v0.7.0" ||
 		packages[1].Status != packageStatusCurrent {
@@ -51,18 +51,18 @@ func TestListAndurelPackages(t *testing.T) {
 
 func TestFilterAndurelPackages(t *testing.T) {
 	packages := []packageVersion{
-		{Name: "email", Path: versions.PkgPrefix + "email"},
+		{Name: "postmand", Path: versions.PkgPrefix + "postmand"},
 		{Name: "storage", Path: versions.PkgPrefix + "storage"},
 	}
 
 	selected, err := filterAndurelPackages(
 		packages,
-		[]string{"storage", versions.PkgPrefix + "email"},
+		[]string{"storage", versions.PkgPrefix + "postmand"},
 	)
 	if err != nil {
 		t.Fatalf("filter: %v", err)
 	}
-	if len(selected) != 2 || selected[0].Name != "storage" || selected[1].Name != "email" {
+	if len(selected) != 2 || selected[0].Name != "storage" || selected[1].Name != "postmand" {
 		t.Fatalf("selected = %#v", selected)
 	}
 
@@ -98,7 +98,7 @@ func TestPackagesListJSON(t *testing.T) {
 		t.Fatalf("packages = %#v", report.Packages)
 	}
 	if report.Packages[0].Status != packageStatusReplaced {
-		t.Fatalf("email status = %q", report.Packages[0].Status)
+		t.Fatalf("postmand status = %q", report.Packages[0].Status)
 	}
 	if report.Packages[1].Status != packageStatusOutdated ||
 		report.Packages[1].Latest != "v0.7.1" {
@@ -206,15 +206,15 @@ func TestPackagesUpdateSelectedName(t *testing.T) {
 go 1.27.1
 
 require (
-	github.com/mbvlabs/andurel/pkg/email v0.3.1
+	github.com/mbvlabs/andurel/pkg/postmand v0.3.1
 	github.com/mbvlabs/andurel/pkg/storage v0.7.0
 )
 `,
 	)
 	findGoModRoot = func() (string, error) { return root, nil }
 	stubLatestModuleVersions(t, map[string]string{
-		versions.PkgPrefix + "email":   "v0.3.2",
-		versions.PkgPrefix + "storage": "v0.7.1",
+		versions.PkgPrefix + "postmand": "v0.3.2",
+		versions.PkgPrefix + "storage":  "v0.7.1",
 	})
 	var specs []string
 	applyAndurelPackageUpdatesFunc = func(_ context.Context, _ string, got []string) error {
@@ -225,16 +225,16 @@ require (
 	var stdout bytes.Buffer
 	cmd := NewRootCommand("test", "test-date")
 	cmd.SetOut(&stdout)
-	cmd.SetArgs([]string{"packages", "update", "email", "--json"})
+	cmd.SetArgs([]string{"packages", "update", "postmand", "--json"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("packages update email: %v", err)
+		t.Fatalf("packages update postmand: %v", err)
 	}
-	if len(specs) != 1 || specs[0] != versions.PkgPrefix+"email@v0.3.2" {
+	if len(specs) != 1 || specs[0] != versions.PkgPrefix+"postmand@v0.3.2" {
 		t.Fatalf("specs = %#v", specs)
 	}
 
 	report := decodePackageReport(t, stdout.String())
-	if len(report.Packages) != 1 || report.Packages[0].Name != "email" {
+	if len(report.Packages) != 1 || report.Packages[0].Name != "postmand" {
 		t.Fatalf("report = %#v", report)
 	}
 }
@@ -332,9 +332,9 @@ func TestPackagesListIncludesResponsibilities(t *testing.T) {
 	}
 	for _, pkg := range report.Packages {
 		switch pkg.Name {
-		case "email":
+		case "postmand":
 			if pkg.Responsibility == "" || !strings.Contains(strings.ToLower(pkg.Responsibility), "email") {
-				t.Fatalf("email responsibility = %q", pkg.Responsibility)
+				t.Fatalf("postmand responsibility = %q", pkg.Responsibility)
 			}
 		case "storage":
 			if pkg.Responsibility == "" || !strings.Contains(strings.ToLower(pkg.Responsibility), "database") {

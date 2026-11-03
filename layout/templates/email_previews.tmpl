@@ -1,12 +1,12 @@
 package emails
 
-import pkgemail "github.com/mbvlabs/andurel/pkg/email"
+import "github.com/mbvlabs/andurel/pkg/postmand"
 
 // Preview is one fixture-backed email rendered by cmd/emails.
 type Preview struct {
 	Name    string
 	Subject string
-	Email   pkgemail.Transformer
+	Email   postmand.Transformer
 }
 
 // Previews returns the fixture emails used by andurel email render.

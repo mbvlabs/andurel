@@ -52,7 +52,7 @@ Two commands keep an agent honest:
 | Apply pending SQL (one-shot process) | `cmd/migrate/` |
 | Seed data | `seeds/` or `cmd/seeds/` following the existing pattern |
 | External provider adapters | A top-level package named for its job (for example `clients/`, `payment/`) |
-| Email data structs, send helpers, and React Email components | `emails/` (`ToHTML`/`ToText` through `renderHTML`/`renderText`; TSX exported to `emails/templates/` by `andurel sync emails`) |
+| Email data structs, send helpers, and React Email components | `emails/` (`ToHTML`/`ToText` through `templates.HTML`/`templates.Text`; TSX exported to `emails/templates/` by `andurel sync emails`) |
 | River job argument types | `queue/jobs/` (`pkg/storage` owns the generic email args) |
 | River workers and queue registration | `queue/` |
 | App configuration structs and environment loading | `config/` |
@@ -328,8 +328,8 @@ which `app.NewQueue` passes to `storage.WithRiverPeriodicJobs`.
 Put email data structs, send helpers and the React Email components in
 `emails/`. Go ignores the `.tsx` sources and the `components/` and
 `generated/` directories because they hold no Go files. A struct declares
-exported scalar fields and `ToHTML`/`ToText`, which call `renderHTML`/
-`renderText` on the committed `emails/templates/<snake>.{html,txt}.tmpl`.
+exported scalar fields and `ToHTML`/`ToText`, which call `templates.HTML`/
+`templates.Text` on the committed `emails/templates/<snake>.{html,txt}.tmpl`.
 Author the matching `emails/<kebab>.tsx` with the shared `Layout` and
 `theme.ts` tokens, then run `andurel sync emails` to regenerate
 `emails/generated/` and the templates.

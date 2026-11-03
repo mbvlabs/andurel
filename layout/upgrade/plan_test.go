@@ -56,7 +56,7 @@ func TestAddVerifiedPackageDependenciesPinsRequiredModules(t *testing.T) {
 go 1.27.1
 
 require (
-	github.com/mbvlabs/andurel/pkg/email v0.9.0
+	github.com/mbvlabs/andurel/pkg/postmand v0.9.0
 	github.com/mbvlabs/andurel/pkg/storage v0.6.0
 )
 `))
@@ -76,8 +76,8 @@ require (
 	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/storage "+versions.Storage) {
 		t.Fatalf("storage was not pinned:\n%s", goMod)
 	}
-	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/email v0.9.0") {
-		t.Fatalf("newer email pin was downgraded:\n%s", goMod)
+	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/postmand v0.9.0") {
+		t.Fatalf("newer postmand pin was downgraded:\n%s", goMod)
 	}
 	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/inertia "+versions.Inertia) {
 		t.Fatalf("missing Inertia dependency was not added:\n%s", goMod)

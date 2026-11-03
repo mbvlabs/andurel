@@ -1,19 +1,19 @@
 package emails
 
 import (
-	pkgemail "github.com/mbvlabs/andurel/pkg/email"
+	"github.com/mbvlabs/andurel/pkg/postmand"
 )
 
 type VerifyEmail struct {
 	VerificationCode string
 }
 
-var _ pkgemail.Transformer = (*VerifyEmail)(nil)
+var _ postmand.Transformer = (*VerifyEmail)(nil)
 
 func (v VerifyEmail) ToHTML() (string, error) {
-	return renderHTML("verify_email", v)
+	return templates.HTML("verify_email", v)
 }
 
 func (v VerifyEmail) ToText() (string, error) {
-	return renderText("verify_email", v)
+	return templates.Text("verify_email", v)
 }

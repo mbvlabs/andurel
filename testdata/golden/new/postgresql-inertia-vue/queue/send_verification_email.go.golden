@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/mbvlabs/andurel/pkg/email"
+	"github.com/mbvlabs/andurel/pkg/postmand"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/riverqueue/river"
@@ -18,12 +18,12 @@ import (
 type SendVerificationEmailWorker struct {
 	river.WorkerDefaults[jobs.SendVerificationEmailArgs]
 	identity services.Identity
-	sender   email.TransactionalSender
+	sender   postmand.TransactionalSender
 }
 
 func NewSendVerificationEmailWorker(
 	identity services.Identity,
-	sender email.TransactionalSender,
+	sender postmand.TransactionalSender,
 ) *SendVerificationEmailWorker {
 	return &SendVerificationEmailWorker{
 		identity: identity,

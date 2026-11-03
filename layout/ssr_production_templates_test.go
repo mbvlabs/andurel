@@ -74,7 +74,7 @@ func TestGeneratedQueueLoadsOnlyWorkerConfig(t *testing.T) {
 
 func TestGeneratedProductionLikeRunCanLogEmail(t *testing.T) {
 	assertTemplateContains(t, "config_email.tmpl", `LogDriver MailDriver = "log"`)
-	assertTemplateContains(t, "runtime_runtime.tmpl", "email.NewLog(slog.Default())")
+	assertTemplateContains(t, "runtime_runtime.tmpl", "postmand.NewLog(slog.Default())")
 	assertTemplateContains(t, "readme.tmpl",
 		"EMAIL_PROVIDER=log",
 		"logs each message instead of sending it and is allowed in",

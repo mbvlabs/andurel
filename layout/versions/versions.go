@@ -36,14 +36,16 @@ const (
 	Lifecycle = "v0.1.1"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
 	Inertia = "v0.14.1"
-	// Email is the standalone Andurel email module version verified with this framework.
-	Email = "v0.6.1"
+	// Email is the deprecated standalone Andurel email module version verified with this framework.
+	Email = "v0.7.0"
+	// Postmand is the standalone Andurel email module version verified with this framework.
+	Postmand = "v0.1.0"
 	// Env is the standalone Andurel environment module version verified with this framework.
 	Env = "v0.1.1"
 	// Routing is the standalone Andurel routing module version verified with this framework.
 	Routing = "v0.9.1"
 	// Storage is the standalone Andurel storage module version verified with this framework.
-	Storage = "v0.15.1"
+	Storage = "v0.16.0"
 	// Telemetry is the standalone Andurel telemetry module version verified with this framework.
 	Telemetry = "v0.2.3"
 	// Validation is the standalone Andurel validation module version verified with this framework.
@@ -62,6 +64,7 @@ var verifiedPackageVersions = map[string]string{
 	PkgPrefix + "inertia":    Inertia,
 	PkgPrefix + "kiks":       Kiks,
 	PkgPrefix + "lifecycle":  Lifecycle,
+	PkgPrefix + "postmand":   Postmand,
 	PkgPrefix + "routing":    Routing,
 	PkgPrefix + "storage":    Storage,
 	PkgPrefix + "telemetry":  Telemetry,

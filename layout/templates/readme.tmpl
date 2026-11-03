@@ -562,10 +562,10 @@ _, err := i.queue.Insert(ctx, jobs.MyJobArgs{
 Email is authored as React Email components in `emails/` and exported to Go
 `text/template` files in `emails/templates/`. The exported templates are
 committed, so `go build`, tests and sending never need Node. Go owns the data:
-a struct in `emails/` declares `ToHTML`/`ToText`, and `emails/previews.go`
-supplies fixture values for `andurel email render`. Go ignores the TSX sources
-and the `components/` and `generated/` directories because they hold no Go
-files.
+a struct in `emails/` declares `ToHTML`/`ToText` through the shared
+`templates.HTML`/`templates.Text` renderer, and `emails/previews.go` supplies
+fixture values for `andurel email render`. Go ignores the TSX sources and the
+`components/` and `generated/` directories because they hold no Go files.
 
 **1. Create or edit the React Email component:**
 
@@ -611,8 +611,8 @@ type WelcomeEmail struct {
     UserName string
 }
 
-func (w WelcomeEmail) ToHTML() (string, error) { return renderHTML("welcome_email", w) }
-func (w WelcomeEmail) ToText() (string, error) { return renderText("welcome_email", w) }
+func (w WelcomeEmail) ToHTML() (string, error) { return templates.HTML("welcome_email", w) }
+func (w WelcomeEmail) ToText() (string, error) { return templates.Text("welcome_email", w) }
 ```
 
 **2. Regenerate and inspect:**
@@ -633,14 +633,14 @@ the email depends on data written in the same transaction:
 import (
     "fmt"
 
-    "github.com/mbvlabs/andurel/pkg/email"
+    "github.com/mbvlabs/andurel/pkg/postmand"
     "github.com/mbvlabs/andurel/pkg/storage"
 
-    appemails "{{.ModuleName}}/emails"
+    "{{.ModuleName}}/emails"
 )
 
-welcome := appemails.WelcomeEmail{UserName: "John Doe"}
-data, err := email.Compose(
+welcome := emails.WelcomeEmail{UserName: "John Doe"}
+data, err := postmand.Compose(
     welcome,
     "user@example.com",
     i.defaultSenderSignature,

@@ -9,13 +9,13 @@ require (
 	github.com/mbvlabs/andurel/pkg/anduin v0.8.0
 	github.com/mbvlabs/andurel/pkg/auth v0.3.0
 	github.com/mbvlabs/andurel/pkg/cache v0.2.1
-	github.com/mbvlabs/andurel/pkg/email v0.6.1
 	github.com/mbvlabs/andurel/pkg/env v0.1.1
 	github.com/mbvlabs/andurel/pkg/inertia v0.14.1
 	github.com/mbvlabs/andurel/pkg/kiks v0.6.1
 	github.com/mbvlabs/andurel/pkg/lifecycle v0.1.1
+	github.com/mbvlabs/andurel/pkg/postmand v0.1.0
 	github.com/mbvlabs/andurel/pkg/routing v0.9.1
-	github.com/mbvlabs/andurel/pkg/storage v0.15.1
+	github.com/mbvlabs/andurel/pkg/storage v0.16.0
 	github.com/mbvlabs/andurel/pkg/telemetry v0.2.3
 	github.com/mbvlabs/andurel/pkg/validation v0.4.0
 	github.com/mbvlabs/narsilc v0.6.4
