@@ -384,7 +384,10 @@ method passes in either of two ways:
    configured app origin (`cfg.App.Origins()`) plus `CSRF_TRUSTED_ORIGINS`, so
    a same-origin browser form or `fetch` passes without a token. Browsers set
    `Origin` themselves and a cross-site page cannot forge it; never add an
-   origin you do not control, and do not add `*`.
+   origin you do not control, and do not add `*`. Outside production, the
+   scaffold also trusts `http://localhost:3000` for the default `andurel run`
+   proxy. For a custom proxy host or port, add its exact origin to
+   `CSRF_TRUSTED_ORIGINS`.
 2. **Double-submit token.** The value of the `_csrf` cookie is echoed in the
    `X-CSRF-Token` header (`CSRF_STRATEGY=header_only`, the default) or in the
    `_csrf` form field (`header_or_legacy_token`). The middleware writes the

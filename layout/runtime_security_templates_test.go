@@ -17,10 +17,21 @@ func TestGeneratedGlobalCORSIsScopedToExplicitOrigins(t *testing.T) {
 		"cors.Skipper = isViteAssetRequest",
 		"bearerSkipper := anduin.SkipCSRFForBearer(routes.APIPrefix, cfg.Session.Name)",
 		"return bearerSkipper(ctx) || isSafeViteAssetRequest(ctx)",
-		"anduin.MergeOrigins(cfg.App.Origins(), cfg.HTTP.CSRFTrustedOrigins)...",
+		"anduin.MergeOrigins(cfg.App.Origins(), csrfTrustedOrigins)...",
 	)
 	assertTemplateMissing(t, "runtime_runtime.tmpl",
 		"anduin.MergeOrigins(cfg.App.Origins(), cfg.HTTP.CORSAllowedOrigins)...",
+	)
+}
+
+func TestGeneratedCSRFTrustsDefaultDevProxyOnlyOutsideProduction(t *testing.T) {
+	assertTemplateContains(t, "runtime_runtime.tmpl", `csrfTrustedOrigins := cfg.HTTP.CSRFTrustedOrigins
+	if !cfg.App.IsProduction() {
+		// The dev proxy (andurel run) serves the app on localhost:3000, so
+		// requests arriving through it carry that origin. Trust it locally.
+		csrfTrustedOrigins = append(csrfTrustedOrigins, "http://localhost:3000")
+	}`,
+		"anduin.MergeOrigins(cfg.App.Origins(), csrfTrustedOrigins)...",
 	)
 }
 
