@@ -144,6 +144,7 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 		anduin.Recover(),
 		anduin.RealIP(cfg.HTTP.TrustedProxies...),
 		anduin.Telemetry(tel),
+		anduin.Logger(slog.Default(), "/assets/dist"),
 		jar.Middleware(),
 		renderer.Middleware(),
 		anduin.CORS(cors),

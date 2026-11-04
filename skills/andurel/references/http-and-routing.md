@@ -352,6 +352,7 @@ rt.Use(
 	anduin.Recover(),
 	anduin.RealIP(cfg.HTTP.TrustedProxies...),
 	anduin.Telemetry(tel),
+	anduin.Logger(slog.Default(), "/assets/dist"),
 	jar.Middleware(),
 	renderer.Middleware(),
 	anduin.CORS(cors),

@@ -43,6 +43,12 @@ func TestGeneratedViteAssetsUsePublicCORS(t *testing.T) {
 	)
 }
 
+func TestGeneratedRuntimeLogsRequestsWithTelemetryAndSkipsViteAssets(t *testing.T) {
+	assertTemplateContains(t, "runtime_runtime.tmpl", `anduin.Telemetry(tel),
+		anduin.Logger(slog.Default(), "/assets/dist"),
+		jar.Middleware(),`)
+}
+
 func TestGeneratedViteAssetSubtreeUsesRoutingAccessor(t *testing.T) {
 	assertTemplateContains(t, "runtime_runtime.tmpl",
 		"return routes.ViteBuild.InSubtree(path)",
