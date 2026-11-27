@@ -29,56 +29,52 @@ const (
 	// beta.4 regression case, not the release candidate.
 	upgradeE2ETargetVersion = "v2.0.0-beta.5"
 
-	// upgradeE2ECandidateVersion is supplied directly to this checkout's
-	// upgrader. There is deliberately no v2.0.0-rc.1 source CLI below because
-	// that CLI is not published by this test; the candidate is HEAD code.
-	upgradeE2ECandidateVersion = "v2.0.0-rc.1"
-
-	// The rc.1 candidate publishes these framework package pins.
-	upgradeE2ECandidateAnduinVersion   = "v0.8.0"
-	upgradeE2ECandidateInertiaVersion  = "v0.15.0"
-	upgradeE2ECandidatePostmandVersion = "v0.6.1"
+	// The candidate target is handled by this checkout, not a released CLI.
+	upgradeE2ECandidateVersion = "v2.0.0-rc.2"
 )
 
 // upgradeE2ECases covers the existing released beta.4 -> beta.5 regression and
-// the supported public beta.5/beta.7 -> v2.0.0-rc.1 candidate paths. Upgrade
-// notes intentionally exist only between proper releases, so every
-// pre-release-to-pre-release case has no manual actions.
+// the supported beta.5/beta.7/rc.1 -> HEAD candidate paths.
 var upgradeE2ECases = []struct {
 	name            string
 	source          string
 	target          string
 	verifyCandidate bool
+	legacy          bool
 }{
 	{
 		name:   "v2.0.0-beta.4-to-v2.0.0-beta.5",
 		source: "v2.0.0-beta.4",
 		target: upgradeE2ETargetVersion,
+		legacy: true,
 	},
 	{
-		name:            "v2.0.0-beta.5-to-v2.0.0-rc.1",
+		name:            "v2.0.0-beta.5-to-v2.0.0-rc.2",
 		source:          "v2.0.0-beta.5",
 		target:          upgradeE2ECandidateVersion,
 		verifyCandidate: true,
+		legacy:          true,
 	},
 	{
-		name:            "v2.0.0-beta.7-to-v2.0.0-rc.1",
+		name:            "v2.0.0-beta.7-to-v2.0.0-rc.2",
 		source:          "v2.0.0-beta.7",
+		target:          upgradeE2ECandidateVersion,
+		verifyCandidate: true,
+		legacy:          true,
+	},
+	{
+		name:            "v2.0.0-rc.1-to-v2.0.0-rc.2",
+		source:          "v2.0.0-rc.1",
 		target:          upgradeE2ECandidateVersion,
 		verifyCandidate: true,
 	},
 }
 
 // TestUpgradeToHEAD scaffolds with each released CLI in upgradeE2ECases,
-// TestUpgradeToHEAD scaffolds with each released CLI in upgradeE2ECases,
-// upgrades the result with this checkout, applies the rc.1 templ-root migration
-// documented in docs/release-notes/v2.0.0-rc.1.md, and requires the migrated
-// result to build and vet cleanly. The upgrade itself reports no manual
-// actions; the root document is application-owned and deliberately not
-// rewritten. Candidate cases also apply the documented rc.1
-// pkg/email -> pkg/postmand import migration because the module removal is a
-// deliberate pre-rc breaking change. They additionally require the rc.1
-// manifest metadata and current published package pins.
+// upgrades with this checkout, and builds and vets the result. Legacy beta
+// cases apply the documented rc.1 root and email migrations; the rc.1 case
+// retains its existing wiring and application-owned Vite configuration.
+// Candidate cases also check manifest metadata and current package pins.
 //
 // The test downloads the released CLI and modules, so it only runs in nightly
 // and release-readiness. Set ANDUREL_UPGRADE_E2E=1 to enable it.
@@ -95,7 +91,7 @@ func TestUpgradeToHEAD(t *testing.T) {
 
 	for _, tc := range upgradeE2ECases {
 		t.Run(tc.name, func(t *testing.T) {
-			testUpgradeToTarget(t, tc.source, tc.target, localPkg, tc.verifyCandidate)
+			testUpgradeToTarget(t, tc.source, tc.target, localPkg, tc.verifyCandidate, tc.legacy)
 		})
 	}
 }
@@ -106,6 +102,7 @@ func testUpgradeToTarget(
 	target string,
 	localPkg bool,
 	verifyCandidate bool,
+	legacy bool,
 ) {
 	t.Helper()
 
@@ -129,6 +126,16 @@ func testUpgradeToTarget(
 	}
 
 	root := filepath.Join(parent, appName)
+	unchanged := map[string]string{}
+	if !legacy {
+		for _, rel := range []string{"resources/root.html", "resources/root.go", "emails/render.go", "vite.config.ts"} {
+			unchanged[rel] = string(mustReadProjectFile(t, root, rel))
+		}
+		if !strings.Contains(unchanged["resources/root.go"], "html/template") ||
+			!strings.Contains(unchanged["emails/render.go"], postmandImportPath) {
+			t.Fatal("rc.1 scaffold does not have the expected root and email wiring")
+		}
+	}
 	gitRun(t, root, "init")
 	gitRun(t, root, "config", "user.email", "upgrade-e2e@example.com")
 	gitRun(t, root, "config", "user.name", "Upgrade E2E")
@@ -156,22 +163,37 @@ func testUpgradeToTarget(
 	// is an earlier pre-release, so every legacy beta shape now needs both
 	// migrations. The upgrade reports them and never rewrites the root document
 	// or email code, so this test applies the documented migrations itself.
-	wantActions := []string{templRootActionID, postmandMigrationActionID}
+	var wantActions []string
+	if legacy {
+		wantActions = []string{templRootActionID, postmandMigrationActionID}
+	}
 	if got := actionIDs(report.ManualActions); !slices.Equal(got, wantActions) {
 		t.Fatalf("upgrade %s to %s manual actions = %#v, want %#v", source, target, got, wantActions)
 	}
 
-	assertLegacyTemplRootAwaitingMigration(t, root)
-	// rc.1 deliberately breaks compiled templ roots. Upgrades never rewrite
-	// this application-owned document, so every upgraded beta project applies
-	// the documented manual migration before building. The current package
-	// pins are what make the old compiled root fail, so this holds for the
-	// historical beta target too.
-	migrateLegacyTemplRoot(t, root)
-	// rc.1 removes pkg/email. Upgrade deliberately does not rewrite
-	// application-owned Go code, so the test applies the import rewrite the
-	// release notes prescribe before tidy and build.
-	migrateLegacyEmailImports(t, root)
+	for rel, before := range unchanged {
+		if after := string(mustReadProjectFile(t, root, rel)); after != before {
+			t.Errorf("upgrade rewrote application-owned %s", rel)
+		}
+	}
+	if !legacy && !strings.Contains(string(mustReadProjectFile(t, root, "app/runtime.go")), "inertia.WithRoot(resources.Root)") {
+		t.Error("upgrade lost the existing root wiring")
+	}
+	if legacy {
+		assertLegacyTemplRootAwaitingMigration(t, root)
+		// rc.1 deliberately breaks compiled templ roots. Upgrades never rewrite
+		// this application-owned document, so every upgraded beta project applies
+		// the documented manual migration before building. The current package
+		// pins are what make the old compiled root fail, so this holds for the
+		// historical beta target too.
+		migrateLegacyTemplRoot(t, root)
+		// rc.1 removes pkg/email. Upgrade deliberately does not rewrite
+		// application-owned Go code, so the test applies the import rewrite the
+		// release notes prescribe before tidy and build.
+		runUpgradeE2EGo(t, root, "get", "github.com/mbvlabs/andurel/pkg/postmand@v0.6.2")
+		runUpgradeE2EGo(t, root, "get", "github.com/mbvlabs/andurel/pkg/storage@v0.16.1")
+		migrateLegacyEmailImports(t, root)
+	}
 	if localPkg {
 		replaceWithLocalPackages(t, root)
 	}
@@ -262,9 +284,7 @@ func mustReadTestFile(t *testing.T, path string) string {
 	return string(content)
 }
 
-// assertCandidateProject checks the final candidate metadata after the
-// prescribed tidy. The expected pins are literal so a pin drift cannot silently
-// make this release-candidate assertion follow the code it is checking.
+// assertCandidateProject independently checks rc.2's required pins after tidy.
 func assertCandidateProject(t *testing.T, root string, target string, localPkg bool) {
 	t.Helper()
 
@@ -297,15 +317,15 @@ func assertCandidateProject(t *testing.T, root string, target string, localPkg b
 	}{
 		{
 			path:    "github.com/mbvlabs/andurel/pkg/anduin",
-			version: upgradeE2ECandidateAnduinVersion,
+			version: "v0.8.1",
 		},
 		{
 			path:    "github.com/mbvlabs/andurel/pkg/inertia",
-			version: upgradeE2ECandidateInertiaVersion,
+			version: "v0.15.1",
 		},
 		{
 			path:    "github.com/mbvlabs/andurel/pkg/postmand",
-			version: upgradeE2ECandidatePostmandVersion,
+			version: "v0.6.2",
 		},
 	} {
 		if got := required[pin.path]; got != pin.version {
