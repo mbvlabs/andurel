@@ -49,11 +49,19 @@ hosts with routes but no fallback policy; plain `verify` has no static check for
 that policy. A test package that has
 tests but ran none (the scaffold's DB-backed packages exit their `TestMain`
 early when Docker is unavailable) keeps the `go test` step `ok` and the run
-passing, but is listed under the step's `skipped_packages` as
-`{package, reason}`; the human output prints `ok (N packages skipped: …)`.
+passing by default, but is listed under the step's `skipped_packages` as
+`{package, reason}`; the human output prints `PASS WITH SKIPS`.
 Tests that call `t.Skip` are listed under the step's `skipped_tests` as
 `{package, test, reason}`; they keep the step `ok` too, and the human output
 prints `N tests skipped` followed by each `package: TestName (reason)`.
+The executed step's `execution_complete` is true only when go test succeeds
+without any reported package, test, or subtest skip; it does not establish
+coverage or whole-project execution. Unrun steps omit it.
+For CI, `andurel verify --require-test-execution` implies tests and fails when
+a test-bearing package reports no test events, with its reason. It allows
+individual skips, packages without test files, and cached results. Use the
+unscoped command for the full expected suite; scoped and empty changed runs
+cannot establish that the whole suite ran.
 
 `andurel sync payloads` writes `resources/js/types/payloads.ts` from the
 exported structs declared in `payloads/`, following nested named structs in

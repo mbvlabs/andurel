@@ -270,7 +270,7 @@ Verify everything before you ship:
 andurel verify
 ```
 
-`andurel verify` runs the setup preflight, formatting, `go fix`, `go vet`, the typed layer rules, the frontend stage (the `typecheck` script and the route-usage rule), the generated-code drift stage, and the content stage (`andurel.content.toml`, skipped when none is declared). `andurel verify --help` lists each rule. Violations come with a `fix`; a failed run exits 9. Pass `--with-tests` to also run `go test ./...`.
+`andurel verify` runs the setup preflight, formatting, `go fix`, `go vet`, the typed layer rules, the frontend stage (typecheck, route usage, and asset setup), the generated-code drift stage, and the content stage (`andurel.content.toml`, skipped when none is declared). `andurel verify --help` lists each rule. Violations come with a `fix`; a failed run exits 9. Pass `--with-tests` to also run `go test ./...`. For CI, use the unscoped `andurel verify --require-test-execution`: it runs tests and fails when a test-bearing package reports no test events. Deliberate test skips and cached results are allowed; skips are reported as partial execution.
 
 ## How-To Guides
 

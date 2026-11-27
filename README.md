@@ -186,7 +186,7 @@ Details: [directory structure](https://andurel.com/docs/latest/directory-structu
 |---------|---------|
 | `andurel new` (`n`) | Scaffold a project |
 | `andurel patterns` | Read-only reference patterns for every layer (`patterns list`, `patterns show <kind> --json`) |
-| `andurel verify` | Format, `go fix`, `go vet`, the typed layer rules, and generated-code drift; `--with-tests` also runs tests. Rules: `andurel verify --help` or [the rule table](skills/andurel/references/cli-catalog.md#verify-rules) |
+| `andurel verify` | Setup, formatting, `go fix`, `go vet`, typed layer rules, frontend, content, and generated-code drift; `--with-tests` also runs tests. Rules: `andurel verify --help` or [the rule table](skills/andurel/references/cli-catalog.md#verify-rules) |
 | `andurel generate migration` | Create a migration file (code-writing generators are gone) |
 | `andurel sync` | Refresh derived files (queries, routes, payloads, emails) |
 | `andurel email render` | Render every email to HTML, text, and a gallery without sending (`--watch` keeps it live) |
@@ -200,6 +200,11 @@ Details: [directory structure](https://andurel.com/docs/latest/directory-structu
 | `andurel skill` | Show / install the embedded agent skill |
 | `andurel inspect` | Read-only project shape (`handlers`, `domains`, `routes`, …) |
 | `andurel commands` | Structured command discovery |
+
+For CI, `andurel verify --require-test-execution` runs tests and fails if a
+test-bearing package reports no test events. It allows deliberate test skips
+and cached results; skips are reported as partial execution. Use the unscoped
+command for the full expected suite.
 
 Use `andurel <command> --help` for flags. Full CLI reference: [andurel.com/docs/latest/cli](https://andurel.com/docs/latest/cli).
 

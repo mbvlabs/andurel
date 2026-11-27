@@ -69,6 +69,8 @@ type verifyStep struct {
 	// tests only; subtests are reported separately so totals are not doubled.
 	Packages []verifyTestPackage `json:"packages,omitempty"`
 	Totals   *verifyTestTotals   `json:"totals,omitempty"`
+	// ExecutionComplete requires a successful command and no reported skips.
+	ExecutionComplete *bool `json:"execution_complete,omitempty"`
 	// Rules reports the stage's rule selection when verify runs with --only
 	// or --rules. Steps without rule granularity omit it.
 	Rules *verifyStepRules `json:"rules,omitempty"`
@@ -303,7 +305,7 @@ does not fail the run. Pass --no-frontend to skip the frontend stage.
 Pass --with-tests to also run go test -json ./... (or the selected Go packages).
 DB-backed tests need Docker for a Postgres container. A test package that has
 tests but ran none, such as one whose TestMain exits early without Docker, does
-not fail the run: the go test step stays 'ok' and lists it under
+not fail the default run: the go test step stays 'ok' and lists it under
 skipped_packages as {package, reason}. Tests that call t.Skip are listed under
 skipped_tests as {package, test, reason}; they keep the step 'ok' too. When the
 go test step runs, skipped_packages and skipped_tests are always present as
@@ -311,6 +313,13 @@ arrays, empty when nothing was skipped, so a gate can tell "none skipped" from
 "not reported". The step reports per-package status, top-level pass/fail/skip
 counts, subtests separately, duration, cache/no-test-files information, and
 totals. Build, setup, timeout, and race failures are marked explicitly.
+execution_complete is true only when go test succeeds without reported skips;
+it is not a coverage or whole-project guarantee.
+--require-test-execution implies --with-tests and fails if a test-bearing
+package reports no test events. It allows t.Skip and packages with no test
+files, and accepts cached results. Use unscoped andurel verify
+--require-test-execution in CI for the full expected suite; scoped or empty
+changed runs do not establish whole-project execution.
 
 Each step reports status 'ok', 'fail', 'blocked', or 'skipped'. Every failing
 step lists violations as {rule, file, line, message, fix}. A failed or blocked
@@ -342,6 +351,7 @@ stdout. Every JSON envelope carries cli_version.`,
 		},
 	}
 	cmd.Flags().BoolVar(&options.withTests, "with-tests", false, "Also run go test -json")
+	cmd.Flags().BoolVar(&options.requireTestExecution, "require-test-execution", false, "Run tests and fail if a test-bearing package runs no tests")
 	cmd.Flags().
 		BoolVar(&options.skipGenerated, "skip-generated", false, "Skip the generated-code drift stage")
 	cmd.Flags().
@@ -373,7 +383,7 @@ stdout. Every JSON envelope carries cli_version.`,
 	setAgentMetadata(
 		cmd,
 		"verification",
-		"Read-only verification: setup preflight, gofmt, go fix, go vet, the domain persistence and transaction boundary, frontend typecheck, route usage and Inertia asset setup, generated-code drift, and declared content invariants. The asset setup check resolves trusted Vite config and inspects static CSS imports and named Go asset wiring; custom ports are supported, and unsupported indirect wiring is blocked rather than passed. Scope with Go package patterns, --only stages, --rules catalog rules, or --changed [--base ref]; changed mode follows changed packages and their reverse dependencies and records the applied scope and widening in JSON. Missing tools or node_modules fail the setup step with the exact install command and make dependent steps blocked, never generated drift. With --with-tests, the go test step reports per-package status, top-level pass/fail/skip counts, subtests separately, totals, and skipped_packages and skipped_tests with reasons; both arrays are always present and empty when nothing was skipped, and neither skip fails the run. Every JSON envelope carries cli_version. A passing --json/--agent run writes the success envelope to stdout; a failed verification exits 9 and writes the error envelope, with code verification_failed and the full report under data, to stderr. Content invariants come from andurel.content.toml and include catalog/slug/required/local-link checks plus declared argv checkers; projects without a declaration are not_applicable. Fails with exit code 9 and structured violations; each rule and its fix is listed in verify --help and the rules field of andurel commands --json.",
+		"Read-only verification: setup preflight, gofmt, go fix, go vet, the domain persistence and transaction boundary, frontend typecheck, route usage and Inertia asset setup, generated-code drift, and declared content invariants. The asset setup check resolves trusted Vite config and inspects static CSS imports and named Go asset wiring; custom ports are supported, and unsupported indirect wiring is blocked rather than passed. Scope with Go package patterns, --only stages, --rules catalog rules, or --changed [--base ref]; changed mode follows changed packages and their reverse dependencies and records the applied scope and widening in JSON. Missing tools or node_modules fail the setup step with the exact install command and make dependent steps blocked, never generated drift. With --with-tests, the go test step reports per-package status, top-level pass/fail/skip counts, subtests separately, totals, and skipped_packages and skipped_tests with reasons; both arrays are always present and empty when nothing was skipped, and neither skip fails the run. execution_complete is true only for a successful command without reported skips, not a coverage guarantee. --require-test-execution implies tests and fails packages with no test events; deliberate skips and cached results are allowed. Use an unscoped command for the full CI suite. Every JSON envelope carries cli_version. A passing --json/--agent run writes the success envelope to stdout; a failed verification exits 9 and writes the error envelope, with code verification_failed and the full report under data, to stderr. Content invariants come from andurel.content.toml and include catalog/slug/required/local-link checks plus declared argv checkers; projects without a declaration are not_applicable. Fails with exit code 9 and structured violations; each rule and its fix is listed in verify --help and the rules field of andurel commands --json.",
 	)
 	setStandardHelp(cmd)
 	return cmd
@@ -381,14 +391,15 @@ stdout. Every JSON envelope carries cli_version.`,
 
 // verifyOptions is one verify invocation's parsed flags.
 type verifyOptions struct {
-	withTests     bool
-	skipGenerated bool
-	noFrontend    bool
-	only          []string
-	rules         []string
-	changed       bool
-	base          string
-	patterns      []string
+	withTests            bool
+	requireTestExecution bool
+	skipGenerated        bool
+	noFrontend           bool
+	only                 []string
+	rules                []string
+	changed              bool
+	base                 string
+	patterns             []string
 }
 
 func runVerify(cmd *cobra.Command, options verifyOptions) error {
@@ -469,7 +480,7 @@ func applyVerifyFlagSelection(selection verifySelection, options verifyOptions) 
 	// go test is opt-in: --with-tests, or an explicit --only go-test. Plain
 	// verify never runs the project's test suite.
 	explicitTests := slices.Contains(splitVerifyNames(options.only), verifyStageGoTest)
-	if options.withTests || explicitTests {
+	if options.withTests || options.requireTestExecution || explicitTests {
 		selection = selection.with(verifyStageGoTest)
 	} else {
 		selection = selection.without(verifyStageGoTest)
@@ -736,6 +747,19 @@ func contentSelectedRules(ruleIDs []string) []string {
 
 func (r *verifyRunner) runGoTest() verifyStep {
 	step := verifyGoTest(r.rootDir, r.plan.patterns)
+	if r.options.requireTestExecution {
+		for _, pkg := range step.Packages {
+			if pkg.NoTestsRan {
+				step.Status = verifyStatusFail
+				step.OK = false
+				step.Violations = append(step.Violations, verifyViolation{
+					Rule:    "test-execution",
+					Message: fmt.Sprintf("%s ran no tests: %s", pkg.Package, pkg.Reason),
+					Fix:     "Ensure the package's tests can run (including TestMain prerequisites and test filters), then rerun verify.",
+				})
+			}
+		}
+	}
 	return step
 }
 
@@ -765,6 +789,10 @@ func renderVerifyHuman(cmd *cobra.Command, report verifyReport) error {
 	for _, step := range report.Steps {
 		status := "ok"
 		switch step.Status {
+		case verifyStatusOK:
+			if step.ExecutionComplete != nil && !*step.ExecutionComplete {
+				status = "PASS WITH SKIPS"
+			}
 		case verifyStatusFail:
 			status = "FAIL"
 		case verifyStatusSkipped:
@@ -837,6 +865,11 @@ func renderVerifyHuman(cmd *cobra.Command, report verifyReport) error {
 			}
 		}
 	}
+	if verifyHasTestSkips(report) {
+		if _, err := fmt.Fprintln(out, verifySummary(report)); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -862,10 +895,23 @@ func formatViolation(v verifyViolation) string {
 	return line
 }
 
+func verifyHasTestSkips(report verifyReport) bool {
+	for _, step := range report.Steps {
+		if len(step.SkippedPackages) > 0 || len(step.SkippedTests) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func verifySummary(report verifyReport) string {
+	partial := verifyHasTestSkips(report)
 	if report.OK {
 		if report.Scope.Noop {
 			return "No changes in scope; verify did not check whole-project health"
+		}
+		if partial {
+			return "Verification passed with partial test execution (skips reported)"
 		}
 		return "Verification passed"
 	}
@@ -881,14 +927,16 @@ func verifySummary(report verifyReport) string {
 		}
 		failed = append(failed, step.Name)
 	}
+	summary := "Verification failed: " + strings.Join(failed, ", ")
 	if len(blocked) > 0 && len(failed) == 0 {
-		return "Verification blocked: setup incomplete (" + strings.Join(blocked, ", ") + ")"
+		summary = "Verification blocked: setup incomplete (" + strings.Join(blocked, ", ") + ")"
+	} else if len(blocked) > 0 {
+		summary += "; blocked: " + strings.Join(blocked, ", ")
 	}
-	if len(blocked) > 0 {
-		return "Verification failed: " + strings.Join(failed, ", ") +
-			"; blocked: " + strings.Join(blocked, ", ")
+	if partial {
+		summary += "; partial test execution (skips reported)"
 	}
-	return "Verification failed: " + strings.Join(failed, ", ")
+	return summary
 }
 
 // verifyFailureHint is the hint on a failed verify. Its first line says where
@@ -1060,6 +1108,8 @@ func verifyGoTest(rootDir string, patterns []string) verifyStep {
 	step := verifyStepOK("go test")
 	step.SkippedPackages = result.skipped
 	step.SkippedTests = result.skippedTests
+	complete := err == nil && len(result.skipped) == 0 && len(result.skippedTests) == 0
+	step.ExecutionComplete = &complete
 	step.Packages = result.packageReports()
 	totals := result.totals()
 	step.Totals = &totals

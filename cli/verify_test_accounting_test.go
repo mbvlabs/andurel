@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/mbvlabs/andurel/v2/cli/output"
 )
 
 func findTestPackage(t *testing.T, step verifyStep, name string) verifyTestPackage {
@@ -198,9 +200,99 @@ func TestParent(t *testing.T) {
 	if human.err != nil {
 		t.Fatalf("verify --with-tests: %v", human.err)
 	}
-	if !strings.Contains(human.stdout, "go test    ok (") ||
+	if !strings.Contains(human.stdout, "go test    PASS WITH SKIPS (") ||
 		!strings.Contains(human.stdout, "passed") ||
 		!strings.Contains(human.stdout, "skipped example.com/app/dbtests") {
 		t.Fatalf("human output is missing the accounting summary:\n%s", human.stdout)
+	}
+}
+
+func TestRequireTestExecution(t *testing.T) {
+	root := newVerifyTestProject(t)
+	writeVerifyTestPackages(t, root)
+	writeTestFile(t, root, "empty/empty.go", "package empty\n")
+	writeTestFile(t, root, "skips/skips_test.go", `package skips
+import "testing"
+func TestSkipped(t *testing.T) { t.Skip("intentional") }
+func TestSub(t *testing.T) { t.Run("child", func(t *testing.T) { t.Skip("intentional child") }) }
+`)
+	failed := runVerifyInProject(t, root, "verify", "--only", "go-test", "--require-test-execution", "--json")
+	if failed.err == nil {
+		t.Fatal("strict verification unexpectedly passed")
+	}
+	failure := output.Fail(failed.err)
+	if failure.ExitCode != output.ExitVerification {
+		t.Fatalf("exit code = %d", failure.ExitCode)
+	}
+	report := failure.Data.(verifyReport)
+	step := findVerifyStep(t, report, "go test")
+	if step.Status != verifyStatusFail || len(step.Violations) != 1 ||
+		!strings.Contains(step.Violations[0].Message, "example.com/app/dbtests") ||
+		!strings.Contains(step.Violations[0].Message, "docker not found") ||
+		step.ExecutionComplete == nil || *step.ExecutionComplete ||
+		!strings.Contains(verifySummary(report), "partial test execution") {
+		t.Fatalf("strict step = %#v; summary = %s", step, verifySummary(report))
+	}
+	allowed := runVerifyInProject(t, root, "verify", "--only", "go-test", "--require-test-execution", "--json", "./skips", "./empty")
+	if allowed.err != nil {
+		t.Fatalf("strict skips and no-test-files: %v", allowed.err)
+	}
+	step = findVerifyStep(t, decodeVerifyReport(t, allowed), "go test")
+	if step.ExecutionComplete == nil || *step.ExecutionComplete || len(step.SkippedTests) != 2 ||
+		findTestPackage(t, step, "example.com/app/empty").Status != verifyTestStatusNoTestFiles {
+		t.Fatalf("strict allowed step = %#v", step)
+	}
+}
+
+func TestRequireTestExecutionSelectsTestsWithoutWithTests(t *testing.T) {
+	for _, only := range [][]string{nil, {"frontend"}} {
+		selection, err := parseVerifySelection(only, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		selection = applyVerifyFlagSelection(selection, verifyOptions{
+			only:                 only,
+			requireTestExecution: true,
+		})
+		if !stageSelected(selection.StageIDs, verifyStageGoTest) {
+			t.Fatalf("strict policy did not select tests with only=%v", only)
+		}
+	}
+}
+
+func TestFailedGoTestDoesNotClaimCompleteOrInventSkips(t *testing.T) {
+	root := newVerifyTestProject(t)
+	writeTestFile(t, root, "broken/broken_test.go", "package broken\nimport \"testing\"\nfunc TestFail(t *testing.T) { t.Fatal(\"failure\") }\n")
+	result := runVerifyInProject(t, root, "verify", "--only", "go-test", "--json", "./broken")
+	if result.err == nil {
+		t.Fatal("expected test failure")
+	}
+	report := output.Fail(result.err).Data.(verifyReport)
+	step := findVerifyStep(t, report, "go test")
+	if step.ExecutionComplete == nil || *step.ExecutionComplete || strings.Contains(verifySummary(report), "skips reported") {
+		t.Fatalf("step = %#v, summary = %s", step, verifySummary(report))
+	}
+	encoded, err := json.Marshal(report)
+	if err != nil || !strings.Contains(string(encoded), `"execution_complete":false`) {
+		t.Fatalf("report JSON = %s, err = %v", encoded, err)
+	}
+}
+
+func TestFailedGoTestReportsSkips(t *testing.T) {
+	root := newVerifyTestProject(t)
+	writeTestFile(t, root, "mixed/mixed_test.go", `package mixed
+import "testing"
+func TestFail(t *testing.T) { t.Fatal("failure") }
+func TestSkip(t *testing.T) { t.Skip("later") }
+`)
+	result := runVerifyInProject(t, root, "verify", "--only", "go-test", "--json", "./mixed")
+	if result.err == nil {
+		t.Fatal("expected test failure")
+	}
+	report := output.Fail(result.err).Data.(verifyReport)
+	step := findVerifyStep(t, report, "go test")
+	if step.Status != verifyStatusFail || step.ExecutionComplete == nil || *step.ExecutionComplete ||
+		len(step.SkippedTests) != 1 || !strings.Contains(verifySummary(report), "partial test execution") {
+		t.Fatalf("step = %#v, summary = %s", step, verifySummary(report))
 	}
 }
