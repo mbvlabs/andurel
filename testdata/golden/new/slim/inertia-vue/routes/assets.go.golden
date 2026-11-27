@@ -18,8 +18,9 @@ var Sitemap = routing.NewSimpleRoute(
 	"",
 )
 
-// ViteBuild serves the Vite build output. Vite fingerprints file names, so
-// the path needs no cache-busting segment.
+// ViteBuild owns /assets/dist/* exclusively for Vite build output.
+// Declare separate named routes for other Go-served assets. Vite fingerprints
+// file names, so this route needs no timestamp or cache-busting segment.
 var ViteBuild = routing.NewSimpleRoute(
 	"/dist/*",
 	"vite.build",

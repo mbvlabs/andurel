@@ -136,19 +136,19 @@ test-coverage:
 
 # Run golden CLI tests against published pins (PR track: generate + sync + slim new)
 test-golden: install-dev-tools
-    env -u ANDUREL_GOLDEN_FULL go test ./golden/... -v -timeout 15m
+    env -u ANDUREL_GOLDEN_FULL go test ./golden/... -count=1 -v -timeout 15m
 
 # Run golden CLI tests including nightly full-tree `andurel new`
 test-golden-full: install-dev-tools
-    ANDUREL_GOLDEN_FULL=1 go test ./golden/... -v -timeout 45m
+    ANDUREL_GOLDEN_FULL=1 go test ./golden/... -count=1 -v -timeout 45m
 
 # Development-only: golden CLI tests against this checkout's pkg/* modules (not release proof)
 test-golden-local-pkg: install-dev-tools
-    ANDUREL_GOLDEN_LOCAL_PKG=1 env -u ANDUREL_GOLDEN_FULL go test ./golden/... -v -timeout 15m
+    ANDUREL_GOLDEN_LOCAL_PKG=1 env -u ANDUREL_GOLDEN_FULL go test ./golden/... -count=1 -v -timeout 15m
 
 # Development-only: full golden suite against this checkout's pkg/* modules (not release proof)
 test-golden-full-local-pkg: install-dev-tools
-    ANDUREL_GOLDEN_LOCAL_PKG=1 ANDUREL_GOLDEN_FULL=1 go test ./golden/... -v -timeout 45m
+    ANDUREL_GOLDEN_LOCAL_PKG=1 ANDUREL_GOLDEN_FULL=1 go test ./golden/... -count=1 -v -timeout 45m
 
 # Release-shaped golden CLI tests: public proxy, checksums, fresh isolated caches
 test-golden-release: install-dev-tools
