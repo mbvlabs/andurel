@@ -502,7 +502,8 @@ func TestValue(t *testing.T) {
 		t.Fatalf("scope.go_packages = %#v, want the changed package and its external test dependent", report.Scope.GoPackages)
 	}
 	step := findVerifyStep(t, report, "go test")
-	if step.Status != verifyStatusFail {
+	if step.Status != verifyStatusFail || step.ExecutionComplete == nil || *step.ExecutionComplete ||
+		strings.Contains(verifySummary(report), "skips reported") {
 		t.Fatalf("go test step = %#v, want the b_test build failure", step)
 	}
 }
@@ -524,6 +525,20 @@ func TestVerifyChangedSkipsUnaffectedWholeProjectStages(t *testing.T) {
 	setup := findVerifyStep(t, report, "setup")
 	if setup.Status != verifyStatusSkipped {
 		t.Fatalf("setup step = %#v, want skipped when generated has no work", setup)
+	}
+}
+
+func TestRequireTestExecutionEmptyChangedScopeIsNoop(t *testing.T) {
+	root := newGitVerifyProject(t)
+	result := runVerifyInProject(t, root, "verify", "--changed", "--only", "go-test", "--require-test-execution", "--json")
+	if result.err != nil {
+		t.Fatalf("empty changed scope: %v", result.err)
+	}
+	report := decodeVerifyReport(t, result)
+	step := findVerifyStep(t, report, "go test")
+	if !report.Scope.Noop || step.Status != verifyStatusSkipped || step.ExecutionComplete != nil ||
+		strings.Contains(result.stdout, `"execution_complete"`) {
+		t.Fatalf("scope = %#v, step = %#v", report.Scope, step)
 	}
 }
 

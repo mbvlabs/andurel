@@ -459,6 +459,9 @@ func TestVerifyWithTestsReportsSkippedPackages(t *testing.T) {
 		t.Fatalf("a TestMain skip should not fail the run: %#v", envelope)
 	}
 	step := findVerifyStep(t, envelope.Data, "go test")
+	if step.ExecutionComplete == nil || *step.ExecutionComplete || !strings.Contains(result.stdout, "partial test execution") {
+		t.Fatalf("missing partial execution signal: %s", result.stdout)
+	}
 	if step.Status != verifyStatusOK || !step.OK {
 		t.Fatalf("go test step = %#v, want status ok", step)
 	}
@@ -478,7 +481,7 @@ func TestVerifyWithTestsReportsSkippedPackages(t *testing.T) {
 		t.Fatalf("verify --with-tests: %v", human.err)
 	}
 	for _, want := range []string{
-		"go test    ok (",
+		"go test    PASS WITH SKIPS (",
 		"1 package skipped: no tests ran",
 		"skipped example.com/app/dbtests: skipping db tests",
 	} {
@@ -540,7 +543,7 @@ func TestNeedsAssets(t *testing.T) {
 		t.Fatalf("verify --with-tests: %v", human.err)
 	}
 	for _, want := range []string{
-		"go test    ok (",
+		"go test    PASS WITH SKIPS (",
 		"1 test skipped",
 		"skipped example.com/app/skiptests: TestNeedsAssets (",
 		"assets/dist is missing",
@@ -712,6 +715,11 @@ func TestVerifyJSONGoTestStepAlwaysCarriesSkippedArrays(t *testing.T) {
 			if err := json.Unmarshal(encoded, &object); err != nil {
 				t.Fatalf("decode step JSON: %v", err)
 			}
+			if !test.carry {
+				if _, present := object["execution_complete"]; present {
+					t.Fatalf("unrun step claims completeness: %s", encoded)
+				}
+			}
 			for _, field := range []string{"skipped_packages", "skipped_tests"} {
 				value, present := object[field]
 				if present != test.carry {
@@ -751,6 +759,7 @@ func TestVerifyWithTestsJSONHasEmptySkippedArraysOnCleanSuite(t *testing.T) {
 		`"cli_version": "test"`,
 		`"skipped_packages": []`,
 		`"skipped_tests": []`,
+		`"execution_complete": true`,
 	} {
 		if !strings.Contains(result.stdout, want) {
 			t.Fatalf("verify JSON is missing %q:\n%s", want, result.stdout)
