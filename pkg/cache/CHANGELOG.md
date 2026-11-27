@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Security
+
+- Require Go 1.27.4 for standard-library security fixes.
+
 ## 0.2.1 - 2026-10-26
 
 ### Changed

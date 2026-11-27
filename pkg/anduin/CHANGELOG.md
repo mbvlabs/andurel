@@ -4,6 +4,10 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 
 ## Unreleased
 
+### Security
+
+- Require Go 1.27.4 and update OpenTelemetry and network dependencies for security fixes.
+
 ## 0.8.0 - 2026-11-02
 
 ### Added

@@ -4,6 +4,10 @@ All notable changes to the standalone Andurel postmand module are documented her
 
 ## Unreleased
 
+### Security
+
+- Require Go 1.27.4 for standard-library security fixes.
+
 ### Changed
 
 - Renamed the module from `github.com/mbvlabs/andurel/pkg/email` to
