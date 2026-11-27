@@ -4,9 +4,7 @@ All notable changes to the standalone Andurel kiks module are documented here.
 
 ## Unreleased
 
-### Security
-
-- Require Go 1.27.4 and update OpenTelemetry and network dependencies for security fixes.
+## 0.6.2 - 2026-11-27
 
 ### Changed
 
@@ -24,6 +22,10 @@ All notable changes to the standalone Andurel kiks module are documented here.
 - `AddFlash` after the response has started is not persisted because the
   middleware saves on the first response write. Add flashes before writing the
   response. This is existing behavior, now covered by a test.
+
+### Security
+
+- Require Go 1.27.4 and update OpenTelemetry and network dependencies for security fixes.
 
 ## 0.6.1 - 2026-10-30
 

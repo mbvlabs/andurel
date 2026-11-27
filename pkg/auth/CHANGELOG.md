@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel auth module are documented here.
 
 ## Unreleased
 
+## 0.3.1 - 2026-11-27
+
 ### Security
 
 - Require Go 1.27.4 and update `golang.org/x/crypto` for security fixes.
