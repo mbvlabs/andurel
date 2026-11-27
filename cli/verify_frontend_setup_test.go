@@ -90,6 +90,17 @@ func TestVerifyFrontendSetupRuleNotApplicable(t *testing.T) {
 	}
 }
 
+func TestPlainVerifyIncludesFrontendSetup(t *testing.T) {
+	selection, err := parseVerifySelection(nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(selection.StageIDs, verifyStageFrontend) ||
+		!slices.Contains(selection.RuleIDs, frontendSetupRule) {
+		t.Fatal("plain verify must include the frontend asset setup checks")
+	}
+}
+
 func TestVerifyFrontendSetupRuleReportsActionableViolation(t *testing.T) {
 	stubFrontendSetupNode(t, `ANDUREL_FRONTEND_SETUP={"violations":[{"rule":"frontend-setup","file":"vite.config.ts","message":"development origin does not match Vite","fix":"derive server.origin from INERTIA_VITE_DEV_URL"}]}`)
 	root := newVerifyTestProject(t)

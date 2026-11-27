@@ -134,7 +134,7 @@ behavior, performance, or production readiness. Use `andurel verify
 and are not a pass. Tests remain the application's responsibility.
 `andurel build` compiles every process and asset set for production.
 
-`andurel verify --rules frontend-setup` checks the current Inertia asset setup.
+`andurel verify` also checks the current Inertia asset setup by default.
 It resolves Vite's development and production configuration, checks the shared
 root `css/base.css` import, and inspects the named Go asset route and handler.
 `routes.ViteBuild` owns `/assets/dist/*` exclusively for Vite output; use
