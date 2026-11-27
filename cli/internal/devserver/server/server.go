@@ -29,6 +29,7 @@ type AppServer struct {
 	broadcaster            *reload.Broadcaster
 	addProcess             func(*exec.Cmd)
 	readyChan              chan<- struct{}
+	onReady                func()
 	onRebuildStateChanged  func(bool)
 	stateTracker           *state.Tracker
 	clearLogs              func()
@@ -56,6 +57,7 @@ type Config struct {
 	Broadcaster           *reload.Broadcaster
 	AddProcess            func(*exec.Cmd)
 	ReadyChan             chan<- struct{}
+	OnReady               func()
 	OnRebuildStateChanged func(bool)
 	StateTracker          *state.Tracker
 	ClearLogs             func()
@@ -79,6 +81,7 @@ func NewAppServer(cfg Config) *AppServer {
 		broadcaster:           cfg.Broadcaster,
 		addProcess:            cfg.AddProcess,
 		readyChan:             cfg.ReadyChan,
+		onReady:               cfg.OnReady,
 		onRebuildStateChanged: cfg.OnRebuildStateChanged,
 		stateTracker:          cfg.StateTracker,
 		clearLogs:             cfg.ClearLogs,
@@ -194,6 +197,7 @@ func (s *AppServer) rebuild(buildCtx context.Context, appCtx context.Context) er
 	s.logf("[run] Starting server...\n")
 	cmd := exec.CommandContext(appCtx, candidateBinPath)
 	cmd.Dir = s.dir
+	cmd.Env = append(os.Environ(), "PORT="+s.appPort)
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
@@ -450,13 +454,21 @@ func (s *AppServer) startHealthMonitor(ctx context.Context, previousBinPath stri
 	s.healthMu.Unlock()
 
 	go func() {
-		healthURL := fmt.Sprintf("http://localhost:%s/", s.appPort)
+		healthURL := fmt.Sprintf("http://localhost:%s/api/health", s.appPort)
 		reload.BroadcastWhenHealthy(healthCtx, healthURL, s.broadcaster, s.buildWriter(), func() {
+			s.cmdMu.Lock()
+			defer s.cmdMu.Unlock()
+			if healthCtx.Err() != nil {
+				return
+			}
 			if previousBinPath != "" {
 				s.removeBinary(previousBinPath)
 			}
 			s.setRebuildState(false)
 			s.setStatus("ready")
+			if s.onReady != nil {
+				s.onReady()
+			}
 			if s.readyChan != nil {
 				select {
 				case s.readyChan <- struct{}{}:

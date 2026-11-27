@@ -1,11 +1,38 @@
 import { fileURLToPath, URL } from 'node:url'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import tailwindcss from '@tailwindcss/vite'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv, normalizePath } from 'vite'
 import inertia from '@inertiajs/vite'
 
-export default defineConfig(({ command }) => ({
-  plugins: [svelte(), inertia({ ssr: { entry: 'resources/js/ssr.ts' } }), tailwindcss()],
+// The runner updates this private file only after Go is listening.
+function andurelReload() {
+  return {
+    name: 'andurel-reload',
+    apply: 'serve' as const,
+    configureServer(server: import('vite').ViteDevServer) {
+      const file = process.env.ANDUREL_VITE_RELOAD_FILE
+      if (!file) return
+      server.watcher.add(file)
+      server.watcher.on('change', (path) => {
+        if (normalizePath(path) === normalizePath(file)) server.ws.send({ type: 'full-reload' })
+      })
+    },
+  }
+}
+
+export default defineConfig(({ command, mode }) => {
+  const env = { ...loadEnv(mode, process.cwd(), ''), ...process.env }
+  const primaryHost = env.HOST_PRIMARY || 'localhost:8080'
+  const protocol = env.PROTOCOL || 'http'
+  const origins = Object.entries(env)
+    .filter(([key, value]) => key.startsWith('HOST_') && value)
+    .map(([, value]) => `${protocol}://${value}`)
+  origins.push(`${protocol}://${primaryHost}`)
+  const escapedPrimary = primaryHost.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const subdomainOrigin = new RegExp(`^${protocol}://[a-zA-Z0-9-]+\\.${escapedPrimary}$`)
+
+  return {
+  plugins: [svelte(), inertia({ ssr: { entry: 'resources/js/ssr.ts' } }), tailwindcss(), andurelReload()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./resources/js', import.meta.url)),
@@ -27,5 +54,10 @@ export default defineConfig(({ command }) => ({
   server: {
     port: 5173,
     strictPort: true,
+    origin: command === 'serve' ? new URL(env.INERTIA_VITE_DEV_URL || 'http://localhost:5173/assets/dist').origin : undefined,
+    cors: { origin: [...origins, subdomainOrigin] },
+    // Embedded HTML is reloaded by the runner after the Go rebuild, not by Vite.
+    watch: { ignored: ['**/resources/*.html'] },
   },
-}))
+  }
+})

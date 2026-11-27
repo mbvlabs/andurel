@@ -24,15 +24,11 @@ func TestGeneratedGlobalCORSIsScopedToExplicitOrigins(t *testing.T) {
 	)
 }
 
-func TestGeneratedCSRFTrustsDefaultDevProxyOnlyOutsideProduction(t *testing.T) {
-	assertTemplateContains(t, "runtime_runtime.tmpl", `csrfTrustedOrigins := cfg.HTTP.CSRFTrustedOrigins
-	if !cfg.App.IsProduction() {
-		// The dev proxy (andurel run) serves the app on localhost:3000, so
-		// requests arriving through it carry that origin. Trust it locally.
-		csrfTrustedOrigins = append(csrfTrustedOrigins, "http://localhost:3000")
-	}`,
+func TestGeneratedCSRFTrustsConfiguredOrigins(t *testing.T) {
+	assertTemplateContains(t, "runtime_runtime.tmpl", "csrfTrustedOrigins := cfg.HTTP.CSRFTrustedOrigins",
 		"anduin.MergeOrigins(cfg.App.Origins(), csrfTrustedOrigins)...",
 	)
+	assertTemplateMissing(t, "runtime_runtime.tmpl", "http://localhost:3000")
 }
 
 func TestGeneratedViteAssetsUsePublicCORS(t *testing.T) {

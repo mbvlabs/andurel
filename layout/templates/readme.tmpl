@@ -98,7 +98,7 @@ through an application-specific, secure workflow instead.
    andurel verify --with-tests   # also runs go test ./... (DB tests need Docker)
    ```
 
-Your application is now running at `http://localhost:8080` with live reload for Go, the root document, CSS, and Vite changes. Routes are public unless you wrap them in `middleware.AuthOnly(users, hosts)`.
+Your application is now running directly at `http://localhost:8080`; Vite serves frontend modules and HMR on `http://localhost:5173`. Go and root-document changes reload the page after the restarted app answers `GET /api/health` (process liveness, not database or SSR readiness). Routes are public unless you wrap them in `middleware.AuthOnly(users, hosts)`.
 
 ## Dependencies, Lockfile, And Agent Skill
 

@@ -14,6 +14,24 @@ func TestGeneratedViteBundlesSSROnlyForProductionBuilds(t *testing.T) {
 	}
 }
 
+func TestGeneratedViteUsesDevOriginForAssets(t *testing.T) {
+	for _, name := range []string{
+		"inertia_assets_vite_config.tmpl",
+		"inertia_react_assets_vite_config.tmpl",
+		"inertia_svelte_assets_vite_config.tmpl",
+	} {
+		assertTemplateContains(t, name,
+			"origin: command === 'serve' ? new URL(env.INERTIA_VITE_DEV_URL || 'http://localhost:5173/assets/dist').origin : undefined",
+			"base: command === 'build' ? './' : '/assets/dist/'",
+			"cors: { origin: [...origins, subdomainOrigin] }",
+			"server.watcher.add(file)",
+			"normalizePath(path) === normalizePath(file)",
+			"server.ws.send({ type: 'full-reload' })",
+			"watch: { ignored: ['**/resources/*.html'] }",
+		)
+	}
+}
+
 func TestGeneratedEnvDocumentsSSRFailFastAsOptIn(t *testing.T) {
 	assertTemplateContains(t, "env.tmpl",
 		"# INERTIA_SSR_FAIL_FAST=false",

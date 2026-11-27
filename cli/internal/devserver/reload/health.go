@@ -26,7 +26,7 @@ func NewHealthChecker(url string) *HealthChecker {
 }
 
 func (h *HealthChecker) IsHealthy(ctx context.Context) bool {
-	req, err := http.NewRequestWithContext(ctx, http.MethodHead, h.url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, h.url, nil)
 	if err != nil {
 		return false
 	}
@@ -90,6 +90,7 @@ func BroadcastWhenHealthy(ctx context.Context, healthURL string, broadcaster *Br
 		onHealthy()
 	}
 
-	broadcaster.Broadcast()
-	_, _ = fmt.Fprintln(log, "[run] Server healthy, broadcasting reload") // Logging is best effort.
+	if broadcaster != nil && ctx.Err() == nil {
+		broadcaster.Broadcast()
+	}
 }
