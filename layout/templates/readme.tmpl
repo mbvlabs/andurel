@@ -1082,6 +1082,17 @@ go test ./...
 
 ## Testing
 
+`andurel verify --rules frontend-setup` checks the Inertia asset contract:
+root `css/base.css`, Vite development origin/CORS and runner reload integration,
+and production output served through the named Go `routes.ViteBuild` route.
+`/assets/dist/*` is exclusively for Vite build output. Serve other assets
+through separate named Go routes. Vite fingerprints built filenames; no
+timestamp route parameter is needed.
+
+This checks configuration, not browser behavior. Unsupported indirect Go or
+CSS wiring is reported as blocked, not passed. Run browser tests to verify
+actual font loading, HMR, and browser reload.
+
 Every layer has a scaffold test to copy. Factories do not exist — build
 entities inline with the domain API.
 

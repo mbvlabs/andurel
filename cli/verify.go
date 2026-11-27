@@ -31,8 +31,8 @@ const (
 	verifyStatusFail    = "fail"
 	verifyStatusSkipped = "skipped"
 	// verifyStatusBlocked marks a step that could not run because project
-	// setup is incomplete. It fails the run, like a failure, but names the
-	// missing setup instead of blaming generated code.
+	// setup is incomplete or configuration cannot be inspected. It fails the
+	// run, but names the missing evidence instead of claiming a successful check.
 	verifyStatusBlocked = "blocked"
 )
 
@@ -193,7 +193,7 @@ andurel verify checks, in order:
   • go fix    — the toolchain reports no automatic rewrites
   • go vet    — the module vets clean
   • layers    — the typed persistence, transaction, and domain transport rules
-  • frontend  — the package.json typecheck script and the route-usage rule
+  • frontend  — typecheck, route usage, and the Inertia asset setup contract
   • generated — emails, narsilc, routes.ts, and payloads.ts output is up to date
   • content   — the invariants declared in andurel.content.toml
   • go test   — go test -json (only with --with-tests or --only go-test)
@@ -254,6 +254,25 @@ are recognized; re-exports, dynamic property access, and cross-module wrappers
 are not. Render-time calls, event handlers, function bodies, and explicit .path()
 relative helpers are allowed. The Inertia runtime's request-scoped host context
 remains authoritative for the cases static analysis cannot prove.
+
+The asset setup check resolves the project's Vite configuration for serve
+and build. It checks development origin/CORS and runner reload integration,
+static imports of root css/base.css, and production output/manifest settings.
+The named Go routes.ViteBuild route owns /assets/dist/* exclusively for Vite
+build output. The renderer must derive its asset URL from that route, and the
+asset handler must serve the embedded dist subtree. Other assets use separate
+named routes. Custom app and Vite ports are allowed.
+The Go wiring check supports the scaffold's straight-line constructors and
+registration; indirect/dynamic wiring that cannot be inspected is blocked,
+not counted as a pass. CSS proof follows static relative local JS/TS imports;
+aliases, dynamic imports, or adapter-specific component indirection
+may be blocked. Vite config code is evaluated (like typecheck scripts, it must
+be trusted); no services are started. These are configuration checks, not
+browser proof of font loading or HMR.
+Vite 7 or newer is required for read-only config inspection. The project's
+.env is loaded with the same environment precedence as the runner. Standard
+Vite package scripts are checked too; unsupported command wrappers or CLI
+overrides are blocked rather than verifying a different invocation.
 
 The content stage reads andurel.content.toml (schemaVersion = 1):
   include/exclude  root-relative Markdown globs; '*' stays in one segment,
@@ -326,7 +345,7 @@ stdout. Every JSON envelope carries cli_version.`,
 	cmd.Flags().
 		BoolVar(&options.skipGenerated, "skip-generated", false, "Skip the generated-code drift stage")
 	cmd.Flags().
-		BoolVar(&options.noFrontend, "no-frontend", false, "Skip the frontend typecheck and route-usage stage")
+		BoolVar(&options.noFrontend, "no-frontend", false, "Skip frontend typecheck, route usage, and asset setup")
 	cmd.Flags().StringSliceVar(
 		&options.only,
 		"only",
@@ -354,7 +373,7 @@ stdout. Every JSON envelope carries cli_version.`,
 	setAgentMetadata(
 		cmd,
 		"verification",
-		"Read-only verification: setup preflight, gofmt, go fix, go vet, the domain persistence and transaction boundary, the package.json typecheck plus frontend route-usage rule, generated-code drift, and declared content invariants. Scope with Go package patterns, --only stages, --rules catalog rules, or --changed [--base ref]; changed mode follows changed packages and their reverse dependencies and records the applied scope and widening in JSON. Missing tools or node_modules fail the setup step with the exact install command and make dependent steps blocked, never generated drift. With --with-tests, the go test step reports per-package status, top-level pass/fail/skip counts, subtests separately, totals, and skipped_packages and skipped_tests with reasons; both arrays are always present and empty when nothing was skipped, and neither skip fails the run. Every JSON envelope carries cli_version. A passing --json/--agent run writes the success envelope to stdout; a failed verification exits 9 and writes the error envelope, with code verification_failed and the full report under data, to stderr. Content invariants come from andurel.content.toml and include catalog/slug/required/local-link checks plus declared argv checkers; projects without a declaration are not_applicable. Fails with exit code 9 and structured violations; each rule and its fix is listed in verify --help and the rules field of andurel commands --json.",
+		"Read-only verification: setup preflight, gofmt, go fix, go vet, the domain persistence and transaction boundary, frontend typecheck, route usage and Inertia asset setup, generated-code drift, and declared content invariants. The asset setup check resolves trusted Vite config and inspects static CSS imports and named Go asset wiring; custom ports are supported, and unsupported indirect wiring is blocked rather than passed. Scope with Go package patterns, --only stages, --rules catalog rules, or --changed [--base ref]; changed mode follows changed packages and their reverse dependencies and records the applied scope and widening in JSON. Missing tools or node_modules fail the setup step with the exact install command and make dependent steps blocked, never generated drift. With --with-tests, the go test step reports per-package status, top-level pass/fail/skip counts, subtests separately, totals, and skipped_packages and skipped_tests with reasons; both arrays are always present and empty when nothing was skipped, and neither skip fails the run. Every JSON envelope carries cli_version. A passing --json/--agent run writes the success envelope to stdout; a failed verification exits 9 and writes the error envelope, with code verification_failed and the full report under data, to stderr. Content invariants come from andurel.content.toml and include catalog/slug/required/local-link checks plus declared argv checkers; projects without a declaration are not_applicable. Fails with exit code 9 and structured violations; each rule and its fix is listed in verify --help and the rules field of andurel commands --json.",
 	)
 	setStandardHelp(cmd)
 	return cmd
@@ -627,10 +646,11 @@ func (r *verifyRunner) runFrontend() verifyStep {
 	}
 	runTypecheck := r.ruleSelected("frontend")
 	runRouteUsage := r.ruleSelected("frontend-route-usage")
-	if !runTypecheck && !runRouteUsage {
+	runSetup := r.ruleSelected(frontendSetupRule)
+	if !runTypecheck && !runRouteUsage && !runSetup {
 		return verifyStep{Name: "frontend", Status: verifyStatusSkipped, Reason: "no frontend rule selected"}
 	}
-	step, executed := verifyFrontendStage(r.rootDir, runTypecheck, runRouteUsage)
+	step, executed := verifyFrontendStage(r.rootDir, runTypecheck, runRouteUsage, runSetup)
 	step.Rules = r.stageRuleIDs(executed, verifyStageFrontend)
 	return step
 }

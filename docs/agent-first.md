@@ -134,6 +134,24 @@ behavior, performance, or production readiness. Use `andurel verify
 and are not a pass. Tests remain the application's responsibility.
 `andurel build` compiles every process and asset set for production.
 
+`andurel verify --rules frontend-setup` checks the current Inertia asset setup.
+It resolves Vite's development and production configuration, checks the shared
+root `css/base.css` import, and inspects the named Go asset route and handler.
+`routes.ViteBuild` owns `/assets/dist/*` exclusively for Vite output; use
+separate named Go routes for other assets. Vite's content-hashed filenames
+provide cache invalidation without a timestamp route parameter.
+
+The check accepts custom ports and composed Vite configuration. Missing Node
+or Vite dependencies and unsupported indirect Go/CSS wiring are reported as
+blocked, never as a successful check. Vite configuration is trusted executable
+project code. Browser tests still need to prove actual font loading, HMR, and
+health-gated browser reload.
+
+Configuration inspection requires Vite 7 or newer and installed project
+dependencies. It uses the runner's `.env` precedence without changing the
+CLI process environment. Unsupported package-script wrappers or CLI overrides
+are blocked rather than checking a configuration different from the one run.
+
 ## Further reading
 
 - [Andurel 2.0 release candidate](release-notes/v2.0.0-rc.1.md)

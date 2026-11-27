@@ -69,7 +69,7 @@ func verifyStages() []verifyStageSpec {
 		{
 			ID:       verifyStageFrontend,
 			StepName: "frontend",
-			RuleIDs:  []string{"frontend", "frontend-route-usage"},
+			RuleIDs:  []string{"frontend", "frontend-route-usage", "frontend-setup"},
 		},
 		{ID: verifyStageGenerated, StepName: "generated", RuleIDs: []string{"generated"}},
 		{ID: verifyStageContent, StepName: "content", RuleIDs: contentRuleIDs},
@@ -410,7 +410,7 @@ func buildVerifyPlan(
 		if changedFilesAffectFrontend(entries) {
 			plan.scope.Widened = append(plan.scope.Widened, verifyScopeWidening{
 				Step:   "frontend",
-				Reason: "the package.json typecheck and route-usage analysis always check the whole frontend project",
+				Reason: "frontend typecheck, route usage, and asset setup always check the whole frontend project",
 			})
 		} else {
 			skipStage(verifyStageFrontend, "no changed frontend files in scope")
@@ -674,14 +674,23 @@ func listGoPackages(rootDir string) ([]goListPackage, error) {
 func changedFilesAffectFrontend(entries []verifyChangedEntry) bool {
 	for _, entry := range entries {
 		switch strings.ToLower(path.Ext(entry.Path)) {
-		case ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".css", ".vue", ".svelte":
+		case ".ts", ".tsx", ".js", ".jsx", ".mts", ".cts", ".mjs", ".cjs", ".css", ".vue", ".svelte":
 			return true
 		}
 		switch entry.Path {
-		case "package.json", "tsconfig.json":
+		case "package.json", "tsconfig.json", "andurel.lock", "andurel.toml",
+			"pnpm-lock.yaml", "package-lock.json", "yarn.lock", "bun.lock", "bun.lockb":
 			return true
 		}
 		if strings.HasPrefix(entry.Path, "resources/") {
+			return true
+		}
+		if strings.HasSuffix(entry.Path, ".go") &&
+			(strings.HasPrefix(entry.Path, "routes/") ||
+				strings.HasPrefix(entry.Path, "handlers/") ||
+				strings.HasPrefix(entry.Path, "app/") ||
+				strings.HasPrefix(entry.Path, "config/") ||
+				strings.HasPrefix(entry.Path, "assets/")) {
 			return true
 		}
 	}
