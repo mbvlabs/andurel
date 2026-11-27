@@ -123,7 +123,7 @@ func TestReloadWaitsForHTTPHealth(t *testing.T) {
 			w.WriteHeader(http.StatusServiceUnavailable)
 		}
 	}), ReadHeaderTimeout: time.Second}
-	go httpServer.Serve(listener)
+	go func() { _ = httpServer.Serve(listener) }()
 	t.Cleanup(func() { _ = httpServer.Close() })
 	_, port, err := net.SplitHostPort(listener.Addr().String())
 	if err != nil {

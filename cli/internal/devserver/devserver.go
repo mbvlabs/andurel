@@ -134,7 +134,7 @@ func Run(ctx context.Context, opts Options) error {
 		_ = os.Remove(reloadPath)
 		return err
 	}
-	defer os.Remove(reloadPath)
+	defer func() { _ = os.Remove(reloadPath) }()
 
 	procs := &processSet{}
 	ctx, cancel := context.WithCancel(ctx)
