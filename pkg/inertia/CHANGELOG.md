@@ -1,5 +1,9 @@
 ## Unreleased
 
+### Security
+
+- Require Go 1.27.4 and update OpenTelemetry and network dependencies for security fixes.
+
 ## 0.15.0 - 2026-11-03
 
 ### Breaking
