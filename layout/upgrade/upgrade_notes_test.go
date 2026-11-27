@@ -2,10 +2,22 @@ package upgrade
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/mbvlabs/andurel/v2/layout"
+	"github.com/mbvlabs/andurel/v2/layout/versions"
 )
+
+func TestPostmandMigrationKeepsHistoricalStorageBoundary(t *testing.T) {
+	instructions := postmandMigrationInstructions()
+	if !strings.Contains(instructions, "storage older than v0.16.0 still exposes pkg/email") {
+		t.Fatalf("historical storage boundary moved with the current pin:\n%s", instructions)
+	}
+	if !strings.Contains(instructions, "go get github.com/mbvlabs/andurel/pkg/storage@"+versions.Storage) {
+		t.Fatalf("upgrade command does not use the current storage pin:\n%s", instructions)
+	}
+}
 
 // TestPreReleaseUpgradesOnlyEmitApprovedRcOneBreakingActions guards the policy
 // that upgrade notes only exist between proper releases, with the deliberate

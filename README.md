@@ -59,15 +59,14 @@ Match the install channel to the docs you follow.
 
 ### Latest v2 release candidate
 
-V2 has not shipped a stable tag yet. The current candidate is `v2.0.0-rc.1`:
+V2 has not shipped a stable tag yet. Install the `v2.0.0-rc.2` candidate once published:
 
 ```bash
-go install github.com/mbvlabs/andurel/v2@v2.0.0-rc.1
+go install github.com/mbvlabs/andurel/v2@v2.0.0-rc.2
 andurel --version
 ```
 
-Read the [v2.0.0-rc.1 release announcement](docs/release-notes/v2.0.0-rc.1.md)
-and [GitHub release](https://github.com/mbvlabs/andurel/releases/tag/v2.0.0-rc.1)
+Read the [v2.0.0-rc.2 release notes](docs/release-notes/v2.0.0-rc.2.md)
 before using it. To pin another published v2 tag, replace the version suffix in
 the same command.
 

@@ -18,6 +18,10 @@ const goNativeRebuildVersion = "v2.0.0-alpha.4"
 // html/template and pkg/email is replaced by pkg/postmand.
 const rcOneBreakingVersion = "v2.0.0-rc.1"
 
+// storagePostmandVersion is the first storage release without pkg/email types.
+// This historical boundary must not move with the current verified package pin.
+const storagePostmandVersion = "v0.16.0"
+
 // Stable manual-action IDs. They are also the keys andurel doctor uses.
 const (
 	templRootActionID         = "templ-root-v2.0.0-rc.1"
@@ -146,7 +150,7 @@ func postmandMigrationInstructions() string {
 	)
 	instructions.WriteString(
 		"Andurel never rewrites application-owned email code. Upgrade the modules in this order, because storage " +
-			"older than v" + strings.TrimPrefix(versions.Storage, "v") +
+			"older than " + storagePostmandVersion +
 			" still exposes pkg/email types in its worker API:\n\n```text\ngo get github.com/mbvlabs/andurel/pkg/postmand@" +
 			versions.Postmand + "\ngo get github.com/mbvlabs/andurel/pkg/storage@" + versions.Storage + "\n```\n\n",
 	)
