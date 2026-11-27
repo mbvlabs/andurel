@@ -50,6 +50,7 @@ func NewAssetsHandler(appCfg config.App) (AssetsHandler, error) {
 func (a AssetsHandler) Register(rt *anduin.Router) {
 	rt.Route(routes.Robots).Get(a.robots)
 	rt.Route(routes.Sitemap).Get(a.sitemap)
+	// This route serves only Vite build output, not other application assets.
 	// Vite build files are public: a secondary-host page loads them without the
 	// visitor's session, so this CORS response is wildcard and uncredentialed.
 	rt.Route(routes.ViteBuild).Get(a.dist, anduin.CORS(anduin.CORSConfig{

@@ -52,7 +52,7 @@ func verifySetup(rootDir string, needs verifySetupNeeds) (verifyStep, []string) 
 			step.Violations = append(step.Violations, verifyViolation{
 				Rule:    "setup",
 				File:    "package.json",
-				Message: "node_modules is missing, so the frontend typecheck and route-usage checks cannot run",
+				Message: "node_modules is missing, so the frontend checks cannot run",
 				Fix:     fix,
 			})
 			step.Detail = "Install frontend dependencies first: " + fix

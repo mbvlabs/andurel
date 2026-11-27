@@ -94,8 +94,7 @@ func newRunAppCommand() *cobra.Command {
 		Short:   "Start the development server",
 		Long: `Start the development server for your Andurel application.
 
-andurel run builds and runs cmd/app and cmd/queue, and serves the app through
-a live-reload proxy on PROXY_PORT (default 3000). The app itself listens on
+andurel run builds and runs cmd/app and cmd/queue. The app listens on
 PORT (default 8080). It also runs the Vite dev server, which serves Inertia
 pages with HMR and development SSR (/__inertia_ssr). cmd/ssr is the
 production SSR process and is not started here.

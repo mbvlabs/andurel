@@ -386,8 +386,8 @@ method passes in either of two ways:
    a same-origin browser form or `fetch` passes without a token. Browsers set
    `Origin` themselves and a cross-site page cannot forge it; never add an
    origin you do not control, and do not add `*`. Outside production, the
-   scaffold also trusts `http://localhost:3000` for the default `andurel run`
-   proxy. For a custom proxy host or port, add its exact origin to
+   app uses its configured host directly under `andurel run`. For an external
+   proxy host or port, add its exact origin to
    `CSRF_TRUSTED_ORIGINS`.
 2. **Double-submit token.** The value of the `_csrf` cookie is echoed in the
    `X-CSRF-Token` header (`CSRF_STRATEGY=header_only`, the default) or in the

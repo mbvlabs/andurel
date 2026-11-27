@@ -66,6 +66,7 @@ Host fallback policies are checked at app startup, not by a static verify rule. 
 | `setup` | project setup is complete: managed tool binaries and frontend dependencies are installed |
 | `frontend` | the package.json typecheck script passes when the scaffold defines one |
 | `frontend-route-usage` | frontend modules do not call full-URL route helpers at module initialization; use .path() or call while rendering |
+| `frontend-setup` | Vite development, CSS entry, and production assets agree with the named Go Vite build route |
 | `content-config` | andurel.content.toml parses, declares a supported schemaVersion, and its include/exclude globs are valid |
 | `content-catalog` | every declared content catalog entry resolves to an included Markdown file |
 | `content-slug` | content catalog slugs are non-empty, match the declared pattern, and are unique |

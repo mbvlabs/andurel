@@ -122,11 +122,6 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 	// from handlers.AssetsHandler.
 	cors.Skipper = isViteAssetRequest
 	csrfTrustedOrigins := cfg.HTTP.CSRFTrustedOrigins
-	if !cfg.App.IsProduction() {
-		// The dev proxy (andurel run) serves the app on localhost:3000, so
-		// requests arriving through it carry that origin. Trust it locally.
-		csrfTrustedOrigins = append(csrfTrustedOrigins, "http://localhost:3000")
-	}
 	csrf := anduin.DefaultCSRF(
 		cfg.HTTP.CSRFStrategy,
 		cfg.App.IsProduction(),

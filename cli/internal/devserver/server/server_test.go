@@ -107,6 +107,54 @@ func TestStartHealthMonitorSignalsReadyAndClearsRebuildState(t *testing.T) {
 	}
 }
 
+func TestReloadWaitsForHTTPHealth(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var healthy atomic.Bool
+	requests := make(chan string, 10)
+	httpServer := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case requests <- r.Method + " " + r.URL.Path:
+		default:
+		}
+		if !healthy.Load() {
+			w.WriteHeader(http.StatusServiceUnavailable)
+		}
+	}), ReadHeaderTimeout: time.Second}
+	go func() { _ = httpServer.Serve(listener) }()
+	t.Cleanup(func() { _ = httpServer.Close() })
+	_, port, err := net.SplitHostPort(listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	reloaded := make(chan struct{}, 1)
+	s := NewAppServer(Config{AppPort: port, OnReady: func() { reloaded <- struct{}{} }, BuildOut: io.Discard})
+	s.startHealthMonitor(t.Context(), "")
+	defer s.cancelHealthMonitor()
+
+	select {
+	case request := <-requests:
+		if request != "GET /api/health" {
+			t.Fatalf("probe = %q", request)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("health probe did not arrive")
+	}
+	select {
+	case <-reloaded:
+		t.Fatal("reload before health succeeded")
+	default:
+	}
+	healthy.Store(true)
+	select {
+	case <-reloaded:
+	case <-time.After(3 * time.Second):
+		t.Fatal("reload did not follow health success")
+	}
+}
+
 func TestCancelHealthMonitorPreventsReadySignal(t *testing.T) {
 	unhealthyPort := getUnusedPort(t)
 	readyChan := make(chan struct{}, 1)

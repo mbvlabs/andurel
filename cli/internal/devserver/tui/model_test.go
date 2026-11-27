@@ -14,7 +14,7 @@ func TestModelSwitchTabsAndQuit(t *testing.T) {
 	_, _ = hub.Writer(StreamQueue).Write([]byte("job processed\n"))
 	hub.SetStatus(StreamApp, StatusReady)
 
-	m := newModel(hub, Header{Version: "test", ProxyURL: "http://localhost:3000"})
+	m := newModel(hub, Header{Version: "test", AppURL: "http://localhost:8080"})
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	mod := updated.(model)
 	view := mod.render()
@@ -40,7 +40,7 @@ func TestModelSwitchTabsAndQuit(t *testing.T) {
 
 func TestTabClickSelectsQueue(t *testing.T) {
 	hub := NewHub()
-	m := newModel(hub, Header{Version: "test", ProxyURL: "http://localhost:3000"})
+	m := newModel(hub, Header{Version: "test", AppURL: "http://localhost:8080"})
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	mod := updated.(model)
 
@@ -68,7 +68,7 @@ func TestModelToolTabDigitAndFooter(t *testing.T) {
 	hub.Enable("mailpit")
 	_, _ = hub.Writer("mailpit").Write([]byte("smtp ready\n"))
 
-	m := newModel(hub, Header{Version: "test", ProxyURL: "http://localhost:3000"})
+	m := newModel(hub, Header{Version: "test", AppURL: "http://localhost:8080"})
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 24})
 	mod := updated.(model)
 	view := mod.render()

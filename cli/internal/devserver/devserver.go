@@ -1,9 +1,8 @@
 // Package devserver is the development runner behind `andurel run`.
 //
-// Run builds and supervises cmd/app and cmd/queue, puts a live-reload proxy in
-// front of the app, runs the Vite dev server (which also serves development
-// SSR), watches Go files, resources/*.html and emails/**, and
-// starts allowlisted sidecar tools. Cancel the context to stop everything.
+// Run builds and supervises cmd/app and cmd/queue, runs the Vite dev server
+// (which also serves development SSR), watches Go files, resources/*.html and
+// emails/**, and starts allowlisted sidecar tools. Cancel the context to stop.
 package devserver
 
 import (
@@ -11,16 +10,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -28,9 +24,7 @@ import (
 
 	"github.com/mbvlabs/andurel/v2/cli/internal/devserver/ctxrun"
 	"github.com/mbvlabs/andurel/v2/cli/internal/devserver/proc"
-	"github.com/mbvlabs/andurel/v2/cli/internal/devserver/proxy"
 	"github.com/mbvlabs/andurel/v2/cli/internal/devserver/queue"
-	"github.com/mbvlabs/andurel/v2/cli/internal/devserver/reload"
 	"github.com/mbvlabs/andurel/v2/cli/internal/devserver/server"
 	"github.com/mbvlabs/andurel/v2/cli/internal/devserver/state"
 	"github.com/mbvlabs/andurel/v2/cli/internal/devserver/tools"
@@ -39,8 +33,6 @@ import (
 )
 
 const (
-	// DefaultProxyPort is the browser-facing port when PROXY_PORT is unset.
-	DefaultProxyPort = "3000"
 	// DefaultAppPort is the app's own port when PORT is unset.
 	DefaultAppPort = "8080"
 	// DefaultPackageManager runs `<pm> run dev` for Vite when none is given.
@@ -64,10 +56,8 @@ type Options struct {
 	ClearLogs bool
 	// Version is shown in the startup line and the TUI header.
 	Version string
-	// ProxyPort and AppPort override PROXY_PORT and PORT from the
-	// environment (after .env is loaded).
-	ProxyPort string
-	AppPort   string
+	// AppPort overrides PORT from the environment (after .env is loaded).
+	AppPort string
 	// SyncEmails runs andurel sync emails (props/manifest generation plus the
 	// project's email:export script). When set, Run syncs once before the
 	// first build and again whenever emails/** changes, then
@@ -115,7 +105,7 @@ func (opts *Options) normalize() error {
 }
 
 // Run starts the development runner and blocks until ctx is cancelled, the
-// TUI quits, or a core component (proxy, watchers, app server) fails. On
+// TUI quits, or a core component (watchers, app server) fails. On
 // return every child process it started has been stopped. A cancelled ctx is
 // a normal shutdown and returns nil.
 func Run(ctx context.Context, opts Options) error {
@@ -131,15 +121,26 @@ func Run(ctx context.Context, opts Options) error {
 		return err
 	}
 
-	proxyPort := firstNonEmpty(opts.ProxyPort, os.Getenv("PROXY_PORT"), DefaultProxyPort)
 	appPort := firstNonEmpty(opts.AppPort, os.Getenv("PORT"), DefaultAppPort)
+	if err := os.MkdirAll(filepath.Join(opts.Dir, "tmp", "bin"), 0o755); err != nil {
+		return fmt.Errorf("create reload directory: %w", err)
+	}
+	reloadFile, err := os.CreateTemp(filepath.Join(opts.Dir, "tmp", "bin"), "vite-reload-*")
+	if err != nil {
+		return fmt.Errorf("create reload notification: %w", err)
+	}
+	reloadPath := reloadFile.Name()
+	if err := reloadFile.Close(); err != nil {
+		_ = os.Remove(reloadPath)
+		return err
+	}
+	defer func() { _ = os.Remove(reloadPath) }()
 
 	procs := &processSet{}
 	ctx, cancel := context.WithCancel(ctx)
 	defer func() {
 		cancel()
 		procs.cleanup(opts.Stderr, []string{
-			net.JoinHostPort("127.0.0.1", proxyPort),
 			net.JoinHostPort("127.0.0.1", appPort),
 		})
 	}()
@@ -155,12 +156,6 @@ func Run(ctx context.Context, opts Options) error {
 	if !useTUI {
 		hub.SetFallback(opts.Stdout)
 	}
-
-	// The proxy and websocket handlers log through the standard logger; keep
-	// those lines in the build stream so they never draw over the TUI.
-	previousLogOutput := log.Writer()
-	log.SetOutput(buildLog)
-	defer log.SetOutput(previousLogOutput)
 
 	var clearLogs func()
 	if !useTUI && opts.ClearLogs {
@@ -186,7 +181,6 @@ func Run(ctx context.Context, opts Options) error {
 		}
 	}
 
-	broadcaster := reload.NewBroadcaster()
 	rebuildChan := make(chan struct{}, 1)
 	appRebuild := make(chan struct{}, 1)
 	queueRebuild := make(chan struct{}, 1)
@@ -194,7 +188,6 @@ func Run(ctx context.Context, opts Options) error {
 	trk := state.New()
 	var wg sync.WaitGroup
 	errChan := make(chan error, 8)
-	var rebuildInProgress atomic.Bool
 
 	requestRebuild := func() {
 		select {
@@ -204,12 +197,6 @@ func Run(ctx context.Context, opts Options) error {
 	}
 
 	go ctxrun.Fanout(ctx, rebuildChan, appRebuild, queueRebuild)
-
-	wg.Go(func() {
-		if err := runProxyServer(ctx, opts.Dir, proxyPort, appPort, broadcaster, rebuildInProgress.Load); err != nil {
-			errChan <- fmt.Errorf("proxy-server: %w", err)
-		}
-	})
 
 	// When the emails watcher owns emails/*.go, it syncs first and requests
 	// the rebuild after the export, so the Go watcher must not request a
@@ -263,30 +250,21 @@ func Run(ctx context.Context, opts Options) error {
 
 	_, _ = fmt.Fprintf(buildLog, "[run] Starting %s run dev (Vite)\n", opts.PackageManager)
 	wg.Go(func() {
-		if err := runJsDev(ctx, opts.Dir, opts.PackageManager, buildLog, procs.add); err != nil {
+		if err := runJsDev(ctx, opts.Dir, opts.PackageManager, reloadPath, buildLog, procs.add); err != nil {
 			_, _ = fmt.Fprintf(buildLog, "[run] %s run dev: %v\n", opts.PackageManager, err)
 			<-ctx.Done()
 		}
 	})
 
-	readyChan := make(chan struct{}, 1)
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-readyChan:
-				rebuildInProgress.Store(false)
-			}
-		}
-	}()
-
 	appServer := server.NewAppServer(server.Config{
-		Dir:          opts.Dir,
-		AppPort:      appPort,
-		Broadcaster:  broadcaster,
-		AddProcess:   procs.add,
-		ReadyChan:    readyChan,
+		Dir:        opts.Dir,
+		AppPort:    appPort,
+		AddProcess: procs.add,
+		OnReady: func() {
+			if err := os.WriteFile(reloadPath, []byte(time.Now().String()), 0o600); err != nil {
+				_, _ = fmt.Fprintf(buildLog, "[run] Vite reload notification: %v\n", err)
+			}
+		},
 		StateTracker: trk,
 		ClearLogs:    clearLogs,
 		Stdout:       appLog,
@@ -304,7 +282,6 @@ func Run(ctx context.Context, opts Options) error {
 			}
 		},
 		OnRebuildStateChanged: func(inProgress bool) {
-			rebuildInProgress.Store(inProgress)
 			if inProgress {
 				hub.SetStatus(tui.StreamBuild, tui.StatusStarting)
 			} else if !trk.HasErrorAt(state.IndexGoBuild) &&
@@ -354,8 +331,7 @@ func Run(ctx context.Context, opts Options) error {
 		})
 	}
 
-	_, _ = fmt.Fprintf(buildLog, "\n  Proxy server: http://localhost:%s\n", proxyPort)
-	_, _ = fmt.Fprintf(buildLog, "  App server:   http://localhost:%s (internal)\n", appPort)
+	_, _ = fmt.Fprintf(buildLog, "\n  App server:   http://localhost:%s\n", appPort)
 	_, _ = fmt.Fprintf(buildLog, "  Inertia frontend: %s run dev (Vite dev server)\n", opts.PackageManager)
 	_, _ = fmt.Fprintf(buildLog, "  Inertia SSR:      Vite /__inertia_ssr\n")
 	if syncEmails != nil {
@@ -386,8 +362,8 @@ func Run(ctx context.Context, opts Options) error {
 
 	if useTUI {
 		header := tui.Header{
-			Version:  opts.Version,
-			ProxyURL: fmt.Sprintf("http://localhost:%s", proxyPort),
+			Version: opts.Version,
+			AppURL:  fmt.Sprintf("http://localhost:%s", appPort),
 		}
 		if err := tui.Run(ctx, hub, header); err != nil && ctx.Err() == nil {
 			_, _ = fmt.Fprintf(opts.Stderr, "[run] tui: %v\n", err)
@@ -523,68 +499,14 @@ func signalTrackedProcess(cmd *exec.Cmd, sig syscall.Signal) {
 	_ = cmd.Process.Signal(sig)
 }
 
-func runProxyServer(
-	ctx context.Context,
-	dir, proxyPort, appPort string,
-	broadcaster *reload.Broadcaster,
-	isRebuilding func() bool,
-) error {
-	targetURL := fmt.Sprintf("http://localhost:%s", appPort)
-
-	proxyServer, err := proxy.NewServer(targetURL, reload.WebSocketPath, dir, isRebuilding)
-	if err != nil {
-		return err
-	}
-	if err := proxyServer.ConfigureVite(firstNonEmpty(os.Getenv("INERTIA_VITE_DEV_URL"), "http://localhost:5173/assets/dist")); err != nil {
-		log.Printf("[run] Vite proxy disabled: %v", err)
-	}
-	hosts := []string{os.Getenv("HOST_PRIMARY"), net.JoinHostPort("localhost", proxyPort), net.JoinHostPort("127.0.0.1", proxyPort)}
-	for _, item := range os.Environ() {
-		key, value, ok := strings.Cut(item, "=")
-		if ok && strings.HasPrefix(key, "HOST_") && value != "" {
-			hosts = append(hosts, value)
-		}
-	}
-	proxyServer.SetViteHosts(hosts)
-
-	wsHandler := reload.NewWebSocketHandler(broadcaster)
-	handler := proxyServer.Handler(wsHandler)
-
-	httpServer := &http.Server{
-		Addr:              ":" + proxyPort,
-		Handler:           handler,
-		ReadHeaderTimeout: 10 * time.Second,
-	}
-
-	listener, err := net.Listen("tcp", httpServer.Addr)
-	if err != nil {
-		return fmt.Errorf("listen on %s: %w", httpServer.Addr, err)
-	}
-
-	serveErr := make(chan error, 1)
-	go func() {
-		if err := httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {
-			serveErr <- err
-		}
-	}()
-
-	select {
-	case <-ctx.Done():
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		return httpServer.Shutdown(shutdownCtx)
-	case err := <-serveErr:
-		return fmt.Errorf("serve proxy on %s: %w", httpServer.Addr, err)
-	}
-}
-
-func runJsDev(ctx context.Context, dir, runtime string, out io.Writer, addProcess func(*exec.Cmd)) error {
+func runJsDev(ctx context.Context, dir, runtime, reloadPath string, out io.Writer, addProcess func(*exec.Cmd)) error {
 	if out == nil {
 		out = io.Discard
 	}
 
 	cmd := exec.Command(runtime, "run", "dev")
 	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "ANDUREL_VITE_RELOAD_FILE="+reloadPath)
 	cmd.Stdout = out
 	cmd.Stderr = out
 	// Own process group so cleanup can SIGKILL Vite (and other grandchildren)

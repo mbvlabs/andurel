@@ -117,6 +117,12 @@ var catalog = []Rule{
 		Layer:   "frontend",
 	},
 	{
+		ID:      "frontend-setup",
+		Summary: "Vite development, CSS entry, and production assets agree with the named Go Vite build route",
+		Fix:     "fix the reported frontend setup contract; keep css/base.css as the CSS entry and routes.ViteBuild as the Vite-only /assets/dist/* route",
+		Layer:   "frontend",
+	},
+	{
 		ID:      "content-config",
 		Summary: "andurel.content.toml parses, declares a supported schemaVersion, and its include/exclude globs are valid",
 		Fix:     "fix the reported andurel.content.toml entry; see 'andurel verify --help' for the schema",

@@ -98,7 +98,7 @@ through an application-specific, secure workflow instead.
    andurel verify --with-tests   # also runs go test ./... (DB tests need Docker)
    ```
 
-Your application is now running at `http://localhost:8080` with live reload for Go, the root document, CSS, and Vite changes. Routes are public unless you wrap them in `middleware.AuthOnly(users, hosts)`.
+Your application is now running directly at `http://localhost:8080`; Vite serves frontend modules and HMR on `http://localhost:5173`. Go and root-document changes reload the page after the restarted app answers `GET /api/health` (process liveness, not database or SSR readiness). Routes are public unless you wrap them in `middleware.AuthOnly(users, hosts)`.
 
 ## Dependencies, Lockfile, And Agent Skill
 This project pins its dependencies with the selected package manager's
@@ -1078,6 +1078,17 @@ go test ./...
 ```
 
 ## Testing
+
+`andurel verify` checks the Inertia asset contract by default:
+root `css/base.css`, Vite development origin/CORS and runner reload integration,
+and production output served through the named Go `routes.ViteBuild` route.
+`/assets/dist/*` is exclusively for Vite build output. Serve other assets
+through separate named Go routes. Vite fingerprints built filenames; no
+timestamp route parameter is needed.
+
+This checks configuration, not browser behavior. Unsupported indirect Go or
+CSS wiring is reported as blocked, not passed. Run browser tests to verify
+actual font loading, HMR, and browser reload.
 
 Every layer has a scaffold test to copy. Factories do not exist — build
 entities inline with the domain API.

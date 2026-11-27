@@ -14,8 +14,8 @@ import (
 
 // Header is the static top-of-screen runner metadata.
 type Header struct {
-	Version  string
-	ProxyURL string
+	Version string
+	AppURL  string
 }
 
 type model struct {
@@ -196,7 +196,7 @@ func (m model) render() string {
 	if !m.ready {
 		return "starting andurel run..."
 	}
-	header := fmt.Sprintf("andurel run %s  %s", m.header.Version, m.header.ProxyURL)
+	header := fmt.Sprintf("andurel run %s  %s", m.header.Version, m.header.AppURL)
 	header = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12")).Render(header)
 
 	streams := m.streams()

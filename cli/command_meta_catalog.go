@@ -363,7 +363,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel run": {
 		Summary: "Start the development server",
 		Details: []string{
-			"Builds and runs cmd/app and cmd/queue behind a live-reload proxy on PROXY_PORT (default 3000), and runs the Vite dev server, which also serves development SSR.",
+			"Builds and runs cmd/app and cmd/queue on PORT (default 8080), and runs the Vite dev server, which also serves development SSR.",
 			"Watches Go and resources/*.html files (rebuild), and emails/** (andurel sync emails regenerates props and templates, then the app and queue rebuild).",
 			"Runner log lines start with [run]. Ctrl-C, SIGINT or SIGTERM stops Vite, the app, the queue and any sidecars.",
 		},

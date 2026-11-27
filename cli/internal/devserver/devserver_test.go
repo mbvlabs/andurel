@@ -2,40 +2,10 @@ package devserver
 
 import (
 	"io"
-	"net"
+	"path/filepath"
 	"strings"
 	"testing"
-	"time"
-
-	"github.com/mbvlabs/andurel/v2/cli/internal/devserver/reload"
 )
-
-func TestRunProxyServerFailsFastWhenPortInUse(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := listener.Close(); err != nil {
-			t.Errorf("close listener: %v", err)
-		}
-	})
-
-	_, port, err := net.SplitHostPort(listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	start := time.Now()
-	err = runProxyServer(t.Context(), t.TempDir(), port, "8080", reload.NewBroadcaster(), nil)
-	if err == nil {
-		t.Fatal("expected bind error when proxy port is already in use")
-	}
-
-	if time.Since(start) > time.Second {
-		t.Fatalf("expected startup failure to return quickly, took %s", time.Since(start))
-	}
-}
 
 func TestOptionsNormalize(t *testing.T) {
 	if err := (&Options{}).normalize(); err == nil {
@@ -51,6 +21,11 @@ func TestOptionsNormalize(t *testing.T) {
 	}
 	if opts.Stdin == nil || opts.Stdout == nil || opts.Stderr == nil {
 		t.Fatal("expected standard streams to default")
+	}
+
+	relative := Options{Dir: "."}
+	if err := relative.normalize(); err != nil || !filepath.IsAbs(relative.Dir) {
+		t.Fatalf("normalize relative directory = %q, %v; want absolute path", relative.Dir, err)
 	}
 
 	bad := Options{Dir: t.TempDir(), Tools: []string{"dblab"}}

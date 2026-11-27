@@ -14,9 +14,9 @@ import (
 )
 
 // verifyFrontendStage runs the selected frontend rules: the package manager's
-// typecheck script and the route-usage analysis. It returns the rules it
+// typecheck script, route-usage analysis, and asset setup. It returns the rules it
 // actually executed so the caller can report selected/executed/skipped.
-func verifyFrontendStage(rootDir string, runTypecheck, runRouteUsage bool) (verifyStep, []string) {
+func verifyFrontendStage(rootDir string, runTypecheck, runRouteUsage, runSetup bool) (verifyStep, []string) {
 	executed := make([]string, 0, 2)
 	step := verifyStepOK("frontend")
 	details := make([]string, 0, 2)
@@ -52,11 +52,32 @@ func verifyFrontendStage(rootDir string, runTypecheck, runRouteUsage bool) (veri
 			}
 		}
 	}
+	if runSetup {
+		setup := verifyFrontendSetup(rootDir)
+		if setup.Status == verifyStatusSkipped {
+			skippedChecks++
+			details = append(details, "asset setup: "+setup.Reason)
+		} else {
+			executed = append(executed, frontendSetupRule)
+			step.Violations = append(step.Violations, setup.Violations...)
+			appendVerifyDetail(&step, setup.Detail)
+			if !setup.OK {
+				step.OK = false
+				if setup.Status == verifyStatusFail || step.Status != verifyStatusFail {
+					step.Status = setup.Status
+					step.Reason = setup.Reason
+				}
+			}
+		}
+	}
 	runChecks := 0
 	if runTypecheck {
 		runChecks++
 	}
 	if runRouteUsage {
+		runChecks++
+	}
+	if runSetup {
 		runChecks++
 	}
 	if step.Status == verifyStatusOK && skippedChecks == runChecks {
