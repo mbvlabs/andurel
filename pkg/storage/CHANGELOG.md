@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ## Unreleased
 
+## 0.16.1 - 2026-11-27
+
 ### Security
 
 - Require Go 1.27.4 and update OpenTelemetry, compression, and crypto dependencies for security fixes.

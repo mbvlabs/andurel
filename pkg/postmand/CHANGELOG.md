@@ -4,10 +4,6 @@ All notable changes to the standalone Andurel postmand module are documented her
 
 ## Unreleased
 
-### Security
-
-- Require Go 1.27.4 for standard-library security fixes.
-
 ### Changed
 
 - Renamed the module from `github.com/mbvlabs/andurel/pkg/email` to
@@ -21,6 +17,12 @@ All notable changes to the standalone Andurel postmand module are documented her
   renderer for React Email exports.
 - `Templates` rejects an HTML template without a text pair and a text template
   without an HTML pair.
+
+## 0.6.2 - 2026-11-27
+
+### Security
+
+- Require Go 1.27.4 for standard-library security fixes.
 
 ## 0.6.1 - 2026-10-28
 

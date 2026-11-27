@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel validation module are documented h
 
 ## Unreleased
 
+## 0.4.1 - 2026-11-27
+
 ### Security
 
 - Require Go 1.27.4 for standard-library security fixes.
