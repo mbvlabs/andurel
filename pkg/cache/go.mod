@@ -1,6 +1,6 @@
 module github.com/mbvlabs/andurel/pkg/cache
 
-go 1.27.3
+go 1.27.4
 
 require (
 	github.com/maypok86/otter/v2 v2.3.0

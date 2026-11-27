@@ -4,6 +4,10 @@ All notable changes to the standalone Andurel lifecycle module are documented he
 
 ## Unreleased
 
+### Security
+
+- Require Go 1.27.4 for standard-library security fixes.
+
 ## 0.1.1 - 2026-10-26
 
 ### Changed

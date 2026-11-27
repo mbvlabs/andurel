@@ -4,6 +4,10 @@ All notable changes to the standalone Andurel routing module are documented here
 
 ## Unreleased
 
+### Security
+
+- Require Go 1.27.4 for standard-library security fixes.
+
 ## 0.9.1 - 2026-11-02
 
 ### Fixed

@@ -46,7 +46,7 @@ Agents depend on the CLI, so it is versioned like an API:
 
 ## Toolchain
 
-V2 requires Go 1.27.3 or later. Raising the minimum Go version is allowed in a minor release of the CLI or a patch release of a `pkg/*` module, and is listed in the release notes.
+V2 requires Go 1.27.4 or later. Raising the minimum Go version is allowed in a minor release of the CLI or a patch release of a `pkg/*` module, and is listed in the release notes.
 
 ## Not covered
 
